@@ -1,0 +1,6 @@
+@DarV2_HostAddress = http://localhost:5011
+
+GET {{DarV2_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
