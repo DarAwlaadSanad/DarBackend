@@ -1,4 +1,4 @@
-namespace DarV2.Models;
+﻿namespace DarV2.Models;
 public enum DayOfWeekAr
 {
     Sunday = 0,
@@ -23,4 +23,10 @@ public enum TypeSchool
     Public = 0,
     Azhar = 1,
     Another = 2
+}
+
+public enum Gender
+{
+    Male = 1,   // ذكر
+    Female = 2  // أنثى
 }

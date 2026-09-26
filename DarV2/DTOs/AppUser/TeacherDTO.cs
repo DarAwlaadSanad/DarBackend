@@ -5,6 +5,6 @@
         public string Id { get; set; }
         public string FullName { get; set; }
         public bool IsActive { get; set; }
-        // Groups 
+        public Models.Gender? Gender { get; set; }
     }
 }

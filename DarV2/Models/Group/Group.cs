@@ -1,4 +1,4 @@
-﻿namespace DarV2.Models
+namespace DarV2.Models
 {
     public class Group
     {
@@ -10,6 +10,11 @@
         public string? TeacherId { get; set; }
         public ApplicationUser? Teacher { get; set; } 
 
+
+        // Location
+        public bool IsOnline { get; set; } = false;
+        public int? RoomId { get; set; }
+        public Room? Room { get; set; }
 
         public ICollection<FeePlan> FeePlans { get; set; } = new List<FeePlan>();
         public ICollection<StudentFee> StudentFees { get; set; }

@@ -8,11 +8,11 @@
         public bool IsActive { get; set; }
         public string Code { get; set; }
         public string? Notes { get; set; }
+        public Models.Gender? Gender { get; set; }
         public AcademicYearViewDTO AcademicYear { get; set; }
         public List<MemorizationRecordDTO> MemorizationRecords { get; set; }
         public List<GroupCardDTO> Groups { get; set; }
         public List<PhoneViewDTO> Phones { get; set; }
         public List<ImageViewDTO> Images { get; set; }
-        
     }
 }

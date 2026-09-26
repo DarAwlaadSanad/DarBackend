@@ -35,7 +35,16 @@ namespace DarV2.Controllers
             return Ok(result);
         }
 
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDTO model)
+        {
+            if (model == null || string.IsNullOrEmpty(model.Token) || string.IsNullOrEmpty(model.RefreshToken))
+                return BadRequest("Invalid client request");
 
-        
+            var result = await _authService.RefreshTokenAsync(model);
+            if (result == null) return Unauthorized("Invalid token or refresh token");
+
+            return Ok(result);
+        }
     }
 }

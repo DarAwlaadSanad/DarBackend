@@ -69,6 +69,54 @@ namespace DarV2.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CenterExpenses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Category = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CenterExpenses", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CenterIncomes",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Category = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CenterIncomes", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "FinancialSettings",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    DelayDeductionAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    AbsenceSessionDeduction = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FinancialSettings", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Surah",
                 columns: table => new
                 {
@@ -214,6 +262,29 @@ namespace DarV2.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "FinancialTransactions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    TransactionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_FinancialTransactions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_FinancialTransactions_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Groups",
                 columns: table => new
                 {
@@ -232,6 +303,52 @@ namespace DarV2.Migrations
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TeacherAttendances",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    TeacherId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    Date = table.Column<DateOnly>(type: "date", nullable: false),
+                    CheckInTime = table.Column<TimeSpan>(type: "time", nullable: true),
+                    CheckOutTime = table.Column<TimeSpan>(type: "time", nullable: true),
+                    DelayMinutes = table.Column<int>(type: "int", nullable: false),
+                    IsAbsent = table.Column<bool>(type: "bit", nullable: false),
+                    AbsenceReason = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TeacherAttendances", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TeacherAttendances_AspNetUsers_TeacherId",
+                        column: x => x.TeacherId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "UserContracts",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    SalaryType = table.Column<int>(type: "int", nullable: false),
+                    Amount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_UserContracts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_UserContracts_AspNetUsers_UserId",
+                        column: x => x.UserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -300,6 +417,29 @@ namespace DarV2.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Exams",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Title = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                    Date = table.Column<DateOnly>(type: "date", nullable: false),
+                    MaxScore = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
+                    GroupId = table.Column<int>(type: "int", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Exams", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Exams_Groups_GroupId",
+                        column: x => x.GroupId,
+                        principalTable: "Groups",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "FeePlans",
                 columns: table => new
                 {
@@ -359,7 +499,9 @@ namespace DarV2.Migrations
                     Month = table.Column<int>(type: "int", nullable: false),
                     Year = table.Column<int>(type: "int", nullable: false),
                     AmountPaid = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: false),
-                    PaymentDate = table.Column<DateOnly>(type: "date", nullable: true)
+                    PaymentDate = table.Column<DateOnly>(type: "date", nullable: true),
+                    IsExempted = table.Column<bool>(type: "bit", nullable: false),
+                    ExemptionReason = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -405,6 +547,34 @@ namespace DarV2.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ExamResults",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ExamId = table.Column<int>(type: "int", nullable: false),
+                    StudentId = table.Column<int>(type: "int", nullable: false),
+                    Score = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
+                    Notes = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ExamResults", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ExamResults_Exams_ExamId",
+                        column: x => x.ExamId,
+                        principalTable: "Exams",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ExamResults_Students_StudentId",
+                        column: x => x.StudentId,
+                        principalTable: "Students",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Sessions",
                 columns: table => new
                 {
@@ -414,11 +584,18 @@ namespace DarV2.Migrations
                     GroupScheduleId = table.Column<int>(type: "int", nullable: true),
                     SessionDate = table.Column<DateOnly>(type: "date", nullable: false),
                     StartTime = table.Column<TimeSpan>(type: "time", nullable: false),
-                    EndTime = table.Column<TimeSpan>(type: "time", nullable: false)
+                    EndTime = table.Column<TimeSpan>(type: "time", nullable: false),
+                    SubstituteTeacherId = table.Column<string>(type: "nvarchar(450)", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Sessions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Sessions_AspNetUsers_SubstituteTeacherId",
+                        column: x => x.SubstituteTeacherId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Sessions_GroupSchedules_GroupScheduleId",
                         column: x => x.GroupScheduleId,
@@ -529,6 +706,32 @@ namespace DarV2.Migrations
                     { "2", null, "Teacher", "TEACHER" }
                 });
 
+            migrationBuilder.InsertData(
+                table: "AspNetRoleClaims",
+                columns: new[] { "Id", "ClaimType", "ClaimValue", "RoleId" },
+                values: new object[,]
+                {
+                    { 1, "Permission", "Permissions.Students.View", "1" },
+                    { 2, "Permission", "Permissions.Students.Manage", "1" },
+                    { 3, "Permission", "Permissions.Groups.View", "1" },
+                    { 4, "Permission", "Permissions.Groups.Manage", "1" },
+                    { 5, "Permission", "Permissions.Users.View", "1" },
+                    { 6, "Permission", "Permissions.Users.Manage", "1" },
+                    { 7, "Permission", "Permissions.Roles.View", "1" },
+                    { 8, "Permission", "Permissions.Roles.Manage", "1" },
+                    { 9, "Permission", "Permissions.AcademicYears.View", "1" },
+                    { 10, "Permission", "Permissions.AcademicYears.Manage", "1" },
+                    { 11, "Permission", "Permissions.Fees.View", "1" },
+                    { 12, "Permission", "Permissions.Fees.Manage", "1" },
+                    { 13, "Permission", "Permissions.Attendance.View", "1" },
+                    { 14, "Permission", "Permissions.Attendance.Manage", "1" },
+                    { 15, "Permission", "Permissions.TeacherDashboard.View", "1" },
+                    { 16, "Permission", "Permissions.Students.View", "2" },
+                    { 17, "Permission", "Permissions.Groups.View", "2" },
+                    { 18, "Permission", "Permissions.Attendance.View", "2" },
+                    { 19, "Permission", "Permissions.TeacherDashboard.View", "2" }
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -590,9 +793,29 @@ namespace DarV2.Migrations
                 column: "StudentId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ExamResults_ExamId",
+                table: "ExamResults",
+                column: "ExamId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ExamResults_StudentId",
+                table: "ExamResults",
+                column: "StudentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Exams_GroupId",
+                table: "Exams",
+                column: "GroupId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_FeePlans_GroupId",
                 table: "FeePlans",
                 column: "GroupId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_FinancialTransactions_UserId",
+                table: "FinancialTransactions",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Groups_Name",
@@ -646,6 +869,11 @@ namespace DarV2.Migrations
                 column: "SessionDate");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Sessions_SubstituteTeacherId",
+                table: "Sessions",
+                column: "SubstituteTeacherId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_StudentFees_GroupId",
                 table: "StudentFees",
                 column: "GroupId");
@@ -677,6 +905,16 @@ namespace DarV2.Migrations
                 column: "SSN",
                 unique: true,
                 filter: "[SSN] IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeacherAttendances_TeacherId",
+                table: "TeacherAttendances",
+                column: "TeacherId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_UserContracts_UserId",
+                table: "UserContracts",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -701,10 +939,25 @@ namespace DarV2.Migrations
                 name: "Attendances");
 
             migrationBuilder.DropTable(
+                name: "CenterExpenses");
+
+            migrationBuilder.DropTable(
+                name: "CenterIncomes");
+
+            migrationBuilder.DropTable(
                 name: "Evaluations");
 
             migrationBuilder.DropTable(
+                name: "ExamResults");
+
+            migrationBuilder.DropTable(
                 name: "FeePlans");
+
+            migrationBuilder.DropTable(
+                name: "FinancialSettings");
+
+            migrationBuilder.DropTable(
+                name: "FinancialTransactions");
 
             migrationBuilder.DropTable(
                 name: "Images");
@@ -725,10 +978,19 @@ namespace DarV2.Migrations
                 name: "Surah");
 
             migrationBuilder.DropTable(
+                name: "TeacherAttendances");
+
+            migrationBuilder.DropTable(
+                name: "UserContracts");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "Sessions");
+
+            migrationBuilder.DropTable(
+                name: "Exams");
 
             migrationBuilder.DropTable(
                 name: "Students");

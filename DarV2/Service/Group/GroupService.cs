@@ -1,7 +1,8 @@
-﻿using DarV2.DTOs;
+using DarV2.DTOs;
 using DarV2.Models;
 using DarV2.Repository;
 using DarV2.UnitofWork;
+using Microsoft.EntityFrameworkCore;
 
 namespace DarV2.Service
 {
@@ -22,14 +23,21 @@ namespace DarV2.Service
                 Id = g.Id,
                 Name = g.Name,
                 Description = g.Description,
-                TeacherName = g.Teacher?.UserName,
-                StudentCount = g.StudentGroups?.Count ?? 0
+                TeacherId = g.TeacherId,
+                TeacherName = g.Teacher?.FullName ?? g.Teacher?.UserName,
+                StudentCount = g.StudentGroups?.Count ?? 0,
+                MaleCount = g.StudentGroups?.Count(sg => sg.Student?.Gender == Gender.Male) ?? 0,
+                FemaleCount = g.StudentGroups?.Count(sg => sg.Student?.Gender == Gender.Female) ?? 0,
+                IsOnline = g.IsOnline,
+                RoomId = g.RoomId,
+                RoomName = g.Room?.Name
             }).ToList();
         }
 
         public async Task<GroupDetailsDTO?> GetByIdAsync(int groupId, int month, int year)
         {
             var group = await (_uow.Groups as IGroupRepository)?.GetGroupWithDetailsAsync(groupId);
+            if (group == null) return null;
 
             // 2. جيب الحصص في الشهر ده
             var sessions = await _uow.Sessions
@@ -58,10 +66,15 @@ namespace DarV2.Service
             return new GroupDetailsDTO
             {
                 GroupId = group.Id,
+                MaleCount = students.Count(s => s.Gender == Gender.Male),
+                FemaleCount = students.Count(s => s.Gender == Gender.Female),
                 GroupName = group.Name,
-                TeacherName = group.Teacher.FullName,
+                TeacherName = group.Teacher?.FullName ?? "لا يوجد معلم",
                 Month = month,
                 Year = year,
+                IsOnline = group.IsOnline,
+                RoomId = group.RoomId,
+                RoomName = group.Room?.Name,
 
                 Sessions = sessions.Select(s => new SessionViewDTO
                 {
@@ -93,6 +106,7 @@ namespace DarV2.Service
                     {
                         StudentId = student.Id,
                         StudentName = student.FullName,
+                        Gender = student.Gender,
                         Records = records,
                         TotalPresent = presentCount,
                         TotalEvaluation = totalEvaluation??0,
@@ -102,11 +116,19 @@ namespace DarV2.Service
         }
         public async Task<Models.Group?> CreateAsync(GroupAddDTO dto)
         {
+            if (!dto.IsOnline && dto.RoomId.HasValue)
+            {
+                var roomExists = await _uow.Rooms.GetByIdAsync(dto.RoomId.Value);
+                if (roomExists == null) throw new Exception("الغرفة المحددة غير موجودة");
+            }
+
             var group = new Models.Group
             {
                 Name = dto.Name,
                 Description = dto.Description,
-                TeacherId = dto.TeacherId
+                TeacherId = dto.TeacherId,
+                IsOnline = dto.IsOnline,
+                RoomId = dto.RoomId
             };
 
             await _uow.Groups.AddAsync(group);
@@ -119,9 +141,39 @@ namespace DarV2.Service
             var group = await _uow.Groups.GetByIdAsync(id);
             if (group == null) return false;
 
+            if (!dto.IsOnline && dto.RoomId.HasValue)
+            {
+                var roomExists = await _uow.Rooms.GetByIdAsync(dto.RoomId.Value);
+                if (roomExists == null) throw new Exception("الغرفة المحددة غير موجودة");
+
+                // Check active schedules of this group for room conflicts
+                var mySchedules = await _uow.GroupSchedules.FindAsync(gs => gs.GroupId == id && gs.IsActive);
+                if (mySchedules.Any())
+                {
+                    foreach (var sched in mySchedules)
+                    {
+                        var conflicts = await _uow.GroupSchedules.Query()
+                            .Include(gs => gs.Group)
+                            .Where(gs => gs.IsActive 
+                                      && gs.DayOfWeek == sched.DayOfWeek 
+                                      && gs.GroupId != id
+                                      && gs.Group != null 
+                                      && gs.Group.RoomId == dto.RoomId)
+                            .ToListAsync();
+
+                        if (conflicts.Any(c => sched.StartTime < c.EndTime && sched.EndTime > c.StartTime))
+                        {
+                            throw new Exception("لا يمكن تعيين المجموعة لهذه الغرفة بسبب تعارض مواعيد إحدى حصصها مع مجموعة أخرى في نفس الغرفة.");
+                        }
+                    }
+                }
+            }
+
             group.Name = dto.Name;
             group.Description = dto.Description;
             group.TeacherId = dto.TeacherId;
+            group.IsOnline = dto.IsOnline;
+            group.RoomId = dto.RoomId;
 
             _uow.Groups.Update(group);
             await _uow.SaveAsync();
@@ -130,8 +182,22 @@ namespace DarV2.Service
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var group = await _uow.Groups.GetByIdAsync(id);
+            var group = await _uow.Groups.Query()
+                .Include(g => g.Schedules)
+                .Include(g => g.StudentGroups)
+                .Include(g => g.Sessions)
+                .Include(g => g.FeePlans)
+                .Include(g => g.StudentFees)
+                .FirstOrDefaultAsync(g => g.Id == id);
+
             if (group == null) return false;
+
+            // Clear related records to satisfy foreign key constraints
+            if (group.Schedules != null && group.Schedules.Any()) _uow.GroupSchedules.RemoveRange(group.Schedules);
+            if (group.StudentGroups != null && group.StudentGroups.Any()) _uow.StudentGroups.RemoveRange(group.StudentGroups);
+            if (group.Sessions != null && group.Sessions.Any()) _uow.Sessions.RemoveRange(group.Sessions);
+            if (group.FeePlans != null && group.FeePlans.Any()) _uow.FeePlans.RemoveRange(group.FeePlans);
+            if (group.StudentFees != null && group.StudentFees.Any()) _uow.StudentFees.RemoveRange(group.StudentFees);
 
             _uow.Groups.Remove(group);
             await _uow.SaveAsync();

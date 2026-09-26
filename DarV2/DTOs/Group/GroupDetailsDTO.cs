@@ -1,4 +1,4 @@
-﻿namespace DarV2.DTOs
+namespace DarV2.DTOs
 {
     public class GroupDetailsDTO
     {
@@ -9,6 +9,11 @@
         public string? TeacherName { get; set; }
         public int Month { get; set; }
         public int Year { get; set; }
+        public bool IsOnline { get; set; }
+        public int? RoomId { get; set; }
+        public string? RoomName { get; set; }
+        public int MaleCount { get; set; }
+        public int FemaleCount { get; set; }
 
         // Student with data needed for attendance and evaluation
         public List<SessionViewDTO> Sessions { get; set; } = new List<SessionViewDTO>();

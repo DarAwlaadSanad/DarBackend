@@ -1,3 +1,4 @@
+using DarV2.Models;
 using DarV2.DTOs;
 using DarV2.Service;
 using Microsoft.AspNetCore.Authorization;
@@ -17,6 +18,7 @@ namespace DarV2.Controllers
         }
 
         [HttpGet]
+        [Authorize(Policy = Permissions.ViewGroups)]
         public async Task<IActionResult> GetAll()
         {
             var items = await _groupService.GetAllAsync();
@@ -24,6 +26,7 @@ namespace DarV2.Controllers
         }
 
         [HttpGet("{groupId}")]
+        [Authorize(Policy = Permissions.ViewGroups)]
         public async Task<IActionResult> Get(int groupId,int month,int year)
         {
             var item = await _groupService.GetByIdAsync(groupId,month,year);
@@ -32,7 +35,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageGroups)]
         public async Task<IActionResult> Create([FromBody] GroupAddDTO dto)
         {
             var created = await _groupService.CreateAsync(dto);
@@ -41,7 +44,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageGroups)]
         public async Task<IActionResult> Update(int id, [FromBody] GroupAddDTO dto)
         {
             var ok = await _groupService.UpdateAsync(id, dto);
@@ -50,7 +53,7 @@ namespace DarV2.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = Permissions.DeleteGroups)]
         public async Task<IActionResult> Delete(int id)
         {
             var ok = await _groupService.DeleteAsync(id);

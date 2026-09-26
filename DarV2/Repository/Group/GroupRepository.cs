@@ -1,4 +1,4 @@
-﻿using DarV2.Context;
+using DarV2.Context;
 using DarV2.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,6 +14,7 @@ namespace DarV2.Repository
         {
             return await _db.Groups
                 .Include(g => g.Teacher)
+                .Include(g => g.Room)
                 .Include(g => g.StudentGroups)
                     .ThenInclude(sg => sg.Student)
                 .ToListAsync();
@@ -25,6 +26,7 @@ namespace DarV2.Repository
                 .Where(g => g.Id == groupId)
                 .Include(g => g.Schedules)
                 .Include(g => g.Teacher)
+                .Include(g => g.Room)
                 .Include(g => g.StudentGroups)
                     .ThenInclude(sg => sg.Student)
                 .Include(g => g.Sessions)

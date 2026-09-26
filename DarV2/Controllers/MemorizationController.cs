@@ -1,3 +1,4 @@
+using DarV2.Models;
 using DarV2.DTOs;
 using DarV2.Service;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +18,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageMemorization)]
         public async Task<IActionResult> Add([FromBody] MemorizationRecordCreateDTO dto)
         {
             var created = await _service.AddAsync(dto);
@@ -25,7 +26,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageMemorization)]
         public async Task<IActionResult> Update(int id, [FromBody] MemorizationRecordCreateDTO dto)
         {
             var ok = await _service.UpdateAsync(id, dto);
@@ -34,7 +35,7 @@ namespace DarV2.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageMemorization)]
         public async Task<IActionResult> Delete(int id)
         {
             var ok = await _service.DeleteAsync(id);

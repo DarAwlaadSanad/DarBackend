@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DarV2.Migrations
 {
     [DbContext(typeof(DarContext))]
-    [Migration("20260507062047_init")]
-    partial class init
+    [Migration("20260623223154_AddSalaryPayments")]
+    partial class AddSalaryPayments
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -247,6 +247,12 @@ namespace DarV2.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("bit");
 
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
@@ -301,6 +307,87 @@ namespace DarV2.Migrations
                     b.ToTable("Attendances");
                 });
 
+            modelBuilder.Entity("DarV2.Models.Competition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Competitions");
+                });
+
+            modelBuilder.Entity("DarV2.Models.CompetitionLevel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompetitionId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MaxScore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompetitionId");
+
+                    b.ToTable("CompetitionLevels");
+                });
+
+            modelBuilder.Entity("DarV2.Models.CompetitionResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CompetitionLevelId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("Score")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompetitionLevelId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("CompetitionResults");
+                });
+
             modelBuilder.Entity("DarV2.Models.Evaluation", b =>
                 {
                     b.Property<int>("Id")
@@ -330,6 +417,69 @@ namespace DarV2.Migrations
                     b.HasIndex("SessionId", "StudentId");
 
                     b.ToTable("Evaluations");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Exam", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("GroupId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("MaxScore")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
+
+                    b.ToTable("Exams");
+                });
+
+            modelBuilder.Entity("DarV2.Models.ExamResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ExamId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("Score")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("StudentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExamId");
+
+                    b.HasIndex("StudentId");
+
+                    b.ToTable("ExamResults");
                 });
 
             modelBuilder.Entity("DarV2.Models.FeePlan", b =>
@@ -363,6 +513,179 @@ namespace DarV2.Migrations
                     b.ToTable("FeePlans");
                 });
 
+            modelBuilder.Entity("DarV2.Models.Finance.CenterExpense", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CenterExpenses");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Finance.CenterIncome", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CenterIncomes");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Finance.FinancialSetting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AbsenceSessionDeduction")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DelayDeductionAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FinancialSettings");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Finance.FinancialTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("FinancialTransactions");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Finance.SalaryPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AmountPaid")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SalaryPayments");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Finance.UserContract", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("SalaryType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserContracts");
+                });
+
             modelBuilder.Entity("DarV2.Models.Group", b =>
                 {
                     b.Property<int>("Id")
@@ -375,10 +698,16 @@ namespace DarV2.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<bool>("IsOnline")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("RoomId")
+                        .HasColumnType("int");
 
                     b.Property<string>("TeacherId")
                         .HasColumnType("nvarchar(450)");
@@ -386,6 +715,8 @@ namespace DarV2.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Name");
+
+                    b.HasIndex("RoomId");
 
                     b.HasIndex("TeacherId");
 
@@ -510,6 +841,26 @@ namespace DarV2.Migrations
                     b.ToTable("Phones");
                 });
 
+            modelBuilder.Entity("DarV2.Models.Room", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Rooms");
+                });
+
             modelBuilder.Entity("DarV2.Models.Session", b =>
                 {
                     b.Property<int>("Id")
@@ -533,11 +884,16 @@ namespace DarV2.Migrations
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("time");
 
+                    b.Property<string>("SubstituteTeacherId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("GroupScheduleId");
 
                     b.HasIndex("SessionDate");
+
+                    b.HasIndex("SubstituteTeacherId");
 
                     b.HasIndex("GroupId", "SessionDate", "StartTime")
                         .IsUnique();
@@ -576,6 +932,12 @@ namespace DarV2.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("RefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("RefreshTokenExpiryTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("SSN")
                         .HasColumnType("nvarchar(450)");
 
@@ -602,8 +964,14 @@ namespace DarV2.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("ExemptionReason")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("GroupId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsExempted")
+                        .HasColumnType("bit");
 
                     b.Property<int>("Month")
                         .HasColumnType("int");
@@ -674,6 +1042,43 @@ namespace DarV2.Migrations
                     b.ToTable("Surah");
                 });
 
+            modelBuilder.Entity("DarV2.Models.TeacherAttendance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AbsenceReason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<TimeSpan?>("CheckInTime")
+                        .HasColumnType("time");
+
+                    b.Property<TimeSpan?>("CheckOutTime")
+                        .HasColumnType("time");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("DelayMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsAbsent")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("TeacherId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TeacherId");
+
+                    b.ToTable("TeacherAttendances");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -738,6 +1143,309 @@ namespace DarV2.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("AspNetRoleClaims", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Students.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Students.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Students.Delete",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Groups.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Groups.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Groups.Delete",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Attendance.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Attendance.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Sessions.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Exams.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Exams.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Competitions.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Competitions.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Memorization.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Memorization.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Fees.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Fees.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Fees.Exempt",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 19,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Finance.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 20,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Finance.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 21,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.GroupFees.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 22,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.GroupFees.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 23,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.FeePlans.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 24,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.FeePlans.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 25,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Schedules.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 26,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Schedules.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 27,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.AcademicYears.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 28,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.AcademicYears.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 29,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.TeacherAttendance.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 30,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.TeacherAttendance.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 31,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Reports.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 32,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Reports.Export",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 33,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Users.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 34,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Users.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 35,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Roles.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 36,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Roles.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 37,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.TeacherDashboard.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 38,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Rooms.View",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 39,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Rooms.Manage",
+                            RoleId = "1"
+                        },
+                        new
+                        {
+                            Id = 1000,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Students.View",
+                            RoleId = "2"
+                        },
+                        new
+                        {
+                            Id = 1001,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Groups.View",
+                            RoleId = "2"
+                        },
+                        new
+                        {
+                            Id = 1002,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.Attendance.View",
+                            RoleId = "2"
+                        },
+                        new
+                        {
+                            Id = 1003,
+                            ClaimType = "Permission",
+                            ClaimValue = "Permissions.TeacherDashboard.View",
+                            RoleId = "2"
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
@@ -840,6 +1548,36 @@ namespace DarV2.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("DarV2.Models.CompetitionLevel", b =>
+                {
+                    b.HasOne("DarV2.Models.Competition", "Competition")
+                        .WithMany("Levels")
+                        .HasForeignKey("CompetitionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Competition");
+                });
+
+            modelBuilder.Entity("DarV2.Models.CompetitionResult", b =>
+                {
+                    b.HasOne("DarV2.Models.CompetitionLevel", "CompetitionLevel")
+                        .WithMany("Results")
+                        .HasForeignKey("CompetitionLevelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DarV2.Models.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CompetitionLevel");
+
+                    b.Navigation("Student");
+                });
+
             modelBuilder.Entity("DarV2.Models.Evaluation", b =>
                 {
                     b.HasOne("DarV2.Models.Session", "Session")
@@ -859,6 +1597,36 @@ namespace DarV2.Migrations
                     b.Navigation("Student");
                 });
 
+            modelBuilder.Entity("DarV2.Models.Exam", b =>
+                {
+                    b.HasOne("DarV2.Models.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("DarV2.Models.ExamResult", b =>
+                {
+                    b.HasOne("DarV2.Models.Exam", "Exam")
+                        .WithMany("ExamResults")
+                        .HasForeignKey("ExamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DarV2.Models.Student", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Exam");
+
+                    b.Navigation("Student");
+                });
+
             modelBuilder.Entity("DarV2.Models.FeePlan", b =>
                 {
                     b.HasOne("DarV2.Models.Group", "Group")
@@ -870,12 +1638,52 @@ namespace DarV2.Migrations
                     b.Navigation("Group");
                 });
 
+            modelBuilder.Entity("DarV2.Models.Finance.FinancialTransaction", b =>
+                {
+                    b.HasOne("DarV2.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Finance.SalaryPayment", b =>
+                {
+                    b.HasOne("DarV2.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Finance.UserContract", b =>
+                {
+                    b.HasOne("DarV2.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DarV2.Models.Group", b =>
                 {
+                    b.HasOne("DarV2.Models.Room", "Room")
+                        .WithMany("Groups")
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("DarV2.Models.ApplicationUser", "Teacher")
                         .WithMany("Groups")
                         .HasForeignKey("TeacherId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Room");
 
                     b.Navigation("Teacher");
                 });
@@ -937,9 +1745,16 @@ namespace DarV2.Migrations
                         .HasForeignKey("GroupScheduleId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("DarV2.Models.ApplicationUser", "SubstituteTeacher")
+                        .WithMany()
+                        .HasForeignKey("SubstituteTeacherId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Group");
 
                     b.Navigation("GroupSchedule");
+
+                    b.Navigation("SubstituteTeacher");
                 });
 
             modelBuilder.Entity("DarV2.Models.Student", b =>
@@ -988,6 +1803,17 @@ namespace DarV2.Migrations
                     b.Navigation("Group");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("DarV2.Models.TeacherAttendance", b =>
+                {
+                    b.HasOne("DarV2.Models.ApplicationUser", "Teacher")
+                        .WithMany()
+                        .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Teacher");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -1051,6 +1877,21 @@ namespace DarV2.Migrations
                     b.Navigation("Groups");
                 });
 
+            modelBuilder.Entity("DarV2.Models.Competition", b =>
+                {
+                    b.Navigation("Levels");
+                });
+
+            modelBuilder.Entity("DarV2.Models.CompetitionLevel", b =>
+                {
+                    b.Navigation("Results");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Exam", b =>
+                {
+                    b.Navigation("ExamResults");
+                });
+
             modelBuilder.Entity("DarV2.Models.Group", b =>
                 {
                     b.Navigation("FeePlans");
@@ -1062,6 +1903,11 @@ namespace DarV2.Migrations
                     b.Navigation("StudentFees");
 
                     b.Navigation("StudentGroups");
+                });
+
+            modelBuilder.Entity("DarV2.Models.Room", b =>
+                {
+                    b.Navigation("Groups");
                 });
 
             modelBuilder.Entity("DarV2.Models.Session", b =>

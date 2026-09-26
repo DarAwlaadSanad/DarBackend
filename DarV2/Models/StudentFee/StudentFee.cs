@@ -1,4 +1,4 @@
-﻿namespace DarV2.Models
+namespace DarV2.Models
 {
     public class StudentFee
     {
@@ -17,5 +17,8 @@
 
         public decimal AmountPaid { get; set; }
         public DateOnly? PaymentDate { get; set; }
+
+        public bool IsExempted { get; set; } = false;
+        public string? ExemptionReason { get; set; }
     }
 }

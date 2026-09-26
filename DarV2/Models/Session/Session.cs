@@ -1,4 +1,4 @@
-﻿namespace DarV2.Models
+namespace DarV2.Models
 {
     public class Session 
     {
@@ -13,6 +13,10 @@
         public DateOnly SessionDate { get; set; }
         public TimeSpan StartTime { get; set; }
         public TimeSpan EndTime { get; set; }
+
+        // المدرس البديل (في حالة غياب المدرس الأساسي)
+        public string? SubstituteTeacherId { get; set; }
+        public ApplicationUser? SubstituteTeacher { get; set; }
 
         // الحضور والغياب لهذه الحصة
         public ICollection<Attendance> Attendances { get; set; } = new List<Attendance>();

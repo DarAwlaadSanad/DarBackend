@@ -1,3 +1,4 @@
+using DarV2.Models;
 using DarV2.DTOs;
 using DarV2.Service;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +18,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPost("batch")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageAttendance)]
         public async Task<IActionResult> SaveBatch([FromBody] AttendanceBatchDTO batch)
         {
             await _service.SaveBatchAsync(batch);

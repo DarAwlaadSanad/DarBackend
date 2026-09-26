@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace DarV2.Models
@@ -35,6 +35,12 @@ namespace DarV2.Models
                 .WithOne(e => e.Session)
                 .HasForeignKey(e => e.SessionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Session -> SubstituteTeacher
+            builder.HasOne(s => s.SubstituteTeacher)
+                .WithMany()
+                .HasForeignKey(s => s.SubstituteTeacherId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // منع تكرار حصة بنفس التاريخ والوقت لنفس المجموعة
             builder.HasIndex(s => new { s.GroupId, s.SessionDate, s.StartTime })

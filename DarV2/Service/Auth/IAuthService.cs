@@ -6,5 +6,6 @@ namespace DarV2.Service
     {
         Task<(bool Succeeded, IEnumerable<string>? Errors)> RegisterAsync(RegisterDTO model);
         Task<LoginResultDTO?> LoginAsync(LoginDTO model);
+        Task<LoginResultDTO?> RefreshTokenAsync(RefreshTokenRequestDTO model);
     }
 }

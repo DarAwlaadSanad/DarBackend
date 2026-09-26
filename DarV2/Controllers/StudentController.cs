@@ -1,7 +1,9 @@
-﻿using DarV2.DTOs;
+using DarV2.Models;
+using DarV2.DTOs;
 using DarV2.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace DarV2.Controllers
 {
@@ -17,22 +19,40 @@ namespace DarV2.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] int? academicYearId = null, [FromQuery] int? groupId = null, [FromQuery] string? search = null, [FromQuery] bool? isActive = null)
+        [Authorize(Policy = Permissions.ViewStudents)]
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] int? academicYearId = null, [FromQuery] int? groupId = null, [FromQuery] string? search = null, [FromQuery] bool? isActive = null, [FromQuery] int? gender = null)
         {
-            var items = await _studentService.GetAllAsync(page, pageSize, academicYearId, groupId, search, isActive);
+            var items = await _studentService.GetAllAsync(page, pageSize, academicYearId, groupId, search, isActive, gender);
             return Ok(items);
         }
 
         [HttpGet("{id}")]
+        [Authorize]
         public async Task<IActionResult> Get(int id)
         {
+            var isStudent = User.IsInRole("Student") || User.HasClaim(ClaimTypes.Role, "Student") || User.HasClaim("role", "Student");
+            if (isStudent)
+            {
+                var studentIdClaim = User.FindFirst("studentId")?.Value;
+                if (studentIdClaim != id.ToString())
+                {
+                    return Forbid();
+                }
+            }
+            else if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && 
+                     !User.HasClaim("Permission", Permissions.ViewStudents) && 
+                     !User.HasClaim("Permission", Permissions.ManageStudents))
+            {
+                return Forbid();
+            }
+
             var item = await _studentService.GetByIdAsync(id);
             if (item == null) return NotFound();
             return Ok(item);
         }
 
         [HttpPost("assainGroup")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> AssainGroup(int studentId,int groupId)
         {
             var ok = await _studentService.AssigenGroupToStudent(studentId, groupId);
@@ -40,7 +60,7 @@ namespace DarV2.Controllers
             return Ok("تم تسجيل الطالب في المجموعة");
         }
         [HttpPost("unAssainGroup")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> UnAssainGroup(int studentId, int groupId)
         {
             var ok = await _studentService.UnAssigenGroupToStudent(studentId, groupId);
@@ -56,14 +76,31 @@ namespace DarV2.Controllers
         }
 
         [HttpGet("{id}/groups")]
+        [Authorize]
         public async Task<IActionResult> GetGroups(int id)
         {
+            var isStudent = User.IsInRole("Student") || User.HasClaim(ClaimTypes.Role, "Student") || User.HasClaim("role", "Student");
+            if (isStudent)
+            {
+                var studentIdClaim = User.FindFirst("studentId")?.Value;
+                if (studentIdClaim != id.ToString())
+                {
+                    return Forbid();
+                }
+            }
+            else if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && 
+                     !User.HasClaim("Permission", Permissions.ViewStudents) && 
+                     !User.HasClaim("Permission", Permissions.ManageStudents))
+            {
+                return Forbid();
+            }
+
             var groups = await _studentService.GetGroupsAsync(id);
             return Ok(groups);
         }
 
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> Create([FromForm] StudentAddDTO dto)
         {
             var created = await _studentService.CreateAsync(dto);
@@ -71,7 +108,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> Update(int id, [FromBody] StudentUpdateDTO dto)
         {
             var ok = await _studentService.UpdateAsync(id, dto);
@@ -80,7 +117,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPost("addPhone")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> AddPhone(int studetId,string phone)
         {
             var ok = await _studentService.CreatePhoneAsync(studetId, phone);
@@ -89,7 +126,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPut("updatePhone")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> UpdatePhone(int phoneId, string phone)
         {
             var ok = await _studentService.UpdatePhoneAsync(phoneId, phone);
@@ -97,7 +134,7 @@ namespace DarV2.Controllers
             return Ok();
         }
         [HttpDelete("deletePhone")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> DeletePhone(int phoneId)
         {
             var ok = await _studentService.DeletePhoneAsync(phoneId);
@@ -105,7 +142,7 @@ namespace DarV2.Controllers
             return Ok();
         }
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = Permissions.DeleteStudents)]
         public async Task<IActionResult> Delete(int id)
         {
             var ok = await _studentService.DeleteAsync(id);
@@ -114,7 +151,7 @@ namespace DarV2.Controllers
         }
 
         [HttpPost("{studentId}/images")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> AddImage(int studentId, [FromForm] List<IFormFile> files)
         {
             var imgs = await _studentService.AddImageAsync(studentId, files);
@@ -122,7 +159,7 @@ namespace DarV2.Controllers
         }
 
         [HttpDelete("images/{imageId}")]
-        [Authorize]
+        [Authorize(Policy = Permissions.ManageStudents)]
         public async Task<IActionResult> RemoveImage(int imageId)
         {
             var ok = await _studentService.RemoveImageAsync(imageId);
@@ -137,19 +174,45 @@ namespace DarV2.Controllers
         {
             try
             {
-                var response = await _studentService.LoginAsync(Code,Password);
+                var response = await _studentService.LoginAsync(Code, Password);
                 return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
             {
                 return Unauthorized(new { message = ex.Message });
             }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "حدث خطأ أثناء تسجيل الدخول: " + ex.Message });
+            }
+        }
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDTO model)
+        {
+            if (model == null || string.IsNullOrEmpty(model.Token) || string.IsNullOrEmpty(model.RefreshToken))
+                return BadRequest("Invalid client request");
+
+            var result = await _studentService.RefreshStudentTokenAsync(model);
+            if (result == null) return Unauthorized("Invalid token or refresh token");
+
+            return Ok(result);
         }
 
         [HttpPost("student-change-password")]
-        [Authorize(Roles = "Student")]
+        [Authorize]
         public async Task<IActionResult> ChangePassword(int studentId, string currentPassword, string newPassword)
         {
+            var isStudent = User.IsInRole("Student") || User.HasClaim(ClaimTypes.Role, "Student") || User.HasClaim("role", "Student");
+            if (isStudent)
+            {
+                var claimId = User.FindFirst("studentId")?.Value;
+                if (claimId != studentId.ToString()) return Forbid();
+            }
+            else if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin"))
+            {
+                return Forbid();
+            }
+
             await _studentService.ChangePasswordAsync(studentId, currentPassword, newPassword);
             return Ok(new { message = "Password changed successfully" });
         }

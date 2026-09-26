@@ -17,10 +17,38 @@ namespace DarV2.Service
 
         public async Task<GroupSchedule> AddAsync(CreateGroupScheduleDTO dto)
         {
+            if (dto.EndTime <= dto.StartTime)
+            {
+                throw new Exception("ÙˆÙ‚Øª Ø§Ù„Ø§Ù†ØªÙ‡Ø§Ø¡ ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ø¨Ø¹Ø¯ ÙˆÙ‚Øª Ø§Ù„Ø¨Ø¯Ø¡");
+            }
+
             await _uow.BeginTransactionAsync();
             try
             {
-                // 1. لو في جدول قديم نشط → اقفله
+                var group = await _uow.Groups.GetByIdAsync(dto.GroupId);
+                if (group != null && !group.IsOnline && group.RoomId.HasValue)
+                {
+                    // Check for room overlap conflicts
+                    var conflicts = await _uow.GroupSchedules.Query()
+                        .Include(gs => gs.Group)
+                        .Where(gs => gs.IsActive 
+                                  && gs.DayOfWeek == dto.DayOfWeek 
+                                  && gs.GroupId != dto.GroupId
+                                  && gs.Group != null 
+                                  && gs.Group.RoomId == group.RoomId)
+                        .ToListAsync();
+
+                    var conflict = conflicts.FirstOrDefault(c => dto.StartTime < c.EndTime && dto.EndTime > c.StartTime);
+                    if (conflict != null)
+                    {
+                        var conflictGroupName = conflict.Group?.Name ?? "Ù…Ø¬Ù…ÙˆØ¹Ø© Ø£Ø®Ø±Ù‰";
+                        var startStr = conflict.StartTime.ToString(@"hh\:mm");
+                        var endStr = conflict.EndTime.ToString(@"hh\:mm");
+                        throw new Exception($"ØªØ¹Ø§Ø±Ø¶ ÙÙŠ Ø§Ù„Ù…ÙˆØ¹Ø¯: Ø§Ù„ØºØ±ÙØ© Ù…Ø­Ø¬ÙˆØ²Ø© Ù„Ù€ ({conflictGroupName}) ÙÙŠ Ù†ÙØ³ Ø§Ù„ÙŠÙˆÙ… Ù…Ù† {startStr} Ø¥Ù„Ù‰ {endStr}. Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø§Ù„Ø¥Ø¶Ø§ÙØ© Ø¥Ù„Ø§ Ø¨Ø¹Ø¯ Ø§Ù†ØªÙ‡Ø§Ø¡ Ø§Ù„Ù…ÙˆØ¹Ø¯ Ø§Ù„Ø£ÙˆÙ„.");
+                    }
+                }
+
+                // 1. Ù„Ùˆ ÙÙŠ Ø¬Ø¯ÙˆÙ„ Ù‚Ø¯ÙŠÙ… Ù†Ø´Ø· â†’ Ø§Ù‚ÙÙ„Ù‡
                 var existing = await _uow.GroupSchedules.FindAsync(
                     gs => gs.GroupId == dto.GroupId
                        && gs.DayOfWeek == dto.DayOfWeek
@@ -29,13 +57,10 @@ namespace DarV2.Service
 
                 foreach (var old in existing)
                 {
-                    //old.IsActive = false;
-                    //old.EffectiveTo = dto.EffectiveFrom.AddDays(-1);
-                    //_uow.GroupSchedules.Update(old);
-                    RemoveAsync(old.Id);
+                    await RemoveAsync(old.Id);
                 }
 
-                // 2. أضف الجدول الجديد
+                // 2. Ø£Ø¶Ù Ø§Ù„Ø¬Ø¯ÙˆÙ„ Ø§Ù„Ø¬Ø¯ÙŠØ¯
                 var schedule = new Models.GroupSchedule
                 {
                     GroupId = dto.GroupId,
@@ -46,9 +71,9 @@ namespace DarV2.Service
                     IsActive = true
                 };
                 await _uow.GroupSchedules.AddAsync(schedule);
-                await _uow.SaveAsync(); // عشان يبقى ليه Id
+                await _uow.SaveAsync(); // Ø¹Ø´Ø§Ù† ÙŠØ¨Ù‚Ù‰ Ù„ÙŠÙ‡ Id
 
-                // 3. ولّد Sessions للشهور القادمة
+                // 3. ÙˆÙ„Ù‘Ø¯ Sessions Ù„Ù„Ø´Ù‡ÙˆØ± Ø§Ù„Ù‚Ø§Ø¯Ù…Ø©
                 await GenerateSessionsFromScheduleAsync(schedule, monthsAhead: 5);
 
                 await _uow.SaveAsync();
@@ -63,7 +88,7 @@ namespace DarV2.Service
             }
         }
 
-        // ─── Core generation logic ────────────────────────────────────────────────
+        // â”€â”€â”€ Core generation logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         private async Task GenerateSessionsFromScheduleAsync(
             GroupSchedule schedule,
             int monthsAhead
@@ -72,17 +97,17 @@ namespace DarV2.Service
             //var today = DateOnly.FromDateTime(DateTime.Today);
             var today = DateOnly.FromDateTime(schedule.EffectiveFrom.ToDateTime(TimeOnly.MinValue));
 
-            // ابدأ من EffectiveFrom أو من أول الشهر الحالي (الأكبر)
+            // Ø§Ø¨Ø¯Ø£ Ù…Ù† EffectiveFrom Ø£Ùˆ Ù…Ù† Ø£ÙˆÙ„ Ø§Ù„Ø´Ù‡Ø± Ø§Ù„Ø­Ø§Ù„ÙŠ (Ø§Ù„Ø£ÙƒØ¨Ø±)
             var startDate = schedule.EffectiveFrom > today
                 ? schedule.EffectiveFrom
                 : today;
 
-            // انتهي بعد monthsAhead شهر
+            // Ø§Ù†ØªÙ‡ÙŠ Ø¨Ø¹Ø¯ monthsAhead Ø´Ù‡Ø±
             var endDate = today.AddMonths(monthsAhead);
             endDate = new DateOnly(endDate.Year, endDate.Month,
                           DateTime.DaysInMonth(endDate.Year, endDate.Month));
 
-            // لو في EffectiveTo → احترمه
+            // Ù„Ùˆ ÙÙŠ EffectiveTo â†’ Ø§Ø­ØªØ±Ù…Ù‡
             if (schedule.EffectiveTo.HasValue && schedule.EffectiveTo < endDate)
                 endDate = schedule.EffectiveTo.Value;
 
@@ -90,11 +115,11 @@ namespace DarV2.Service
 
             for (var date = startDate; date <= endDate; date = date.AddDays(1))
             {
-                // هل اليوم ده مطابق ليوم الجدول؟
+                // Ù‡Ù„ Ø§Ù„ÙŠÙˆÙ… Ø¯Ù‡ Ù…Ø·Ø§Ø¨Ù‚ Ù„ÙŠÙˆÙ… Ø§Ù„Ø¬Ø¯ÙˆÙ„ØŸ
                 if ((DayOfWeekAr)date.DayOfWeek != schedule.DayOfWeek)
                     continue;
 
-                // تحقق مش موجود قبل كده (نفس المجموعة + نفس التاريخ + نفس الوقت)
+                // ØªØ­Ù‚Ù‚ Ù…Ø´ Ù…ÙˆØ¬ÙˆØ¯ Ù‚Ø¨Ù„ ÙƒØ¯Ù‡ (Ù†ÙØ³ Ø§Ù„Ù…Ø¬Ù…ÙˆØ¹Ø© + Ù†ÙØ³ Ø§Ù„ØªØ§Ø±ÙŠØ® + Ù†ÙØ³ Ø§Ù„ÙˆÙ‚Øª)
                 var exists = await _uow.Sessions.SessionExistsAsync(
                     schedule.GroupId, date, schedule.StartTime);
 
@@ -128,6 +153,47 @@ namespace DarV2.Service
                 EffectiveTo = i.EffectiveTo,
                 IsActive = i.IsActive
             }).ToList();
+        }
+
+        public async Task<IEnumerable<WeeklyScheduleItemDTO>> GetAllActiveWeeklySchedulesAsync()
+        {
+            var items = await _uow.GroupSchedules.Query()
+                .Include(gs => gs.Group)
+                    .ThenInclude(g => g.Teacher)
+                .Include(gs => gs.Group)
+                    .ThenInclude(g => g.Room)
+                .Where(gs => gs.IsActive)
+                .ToListAsync();
+
+            return items.Select(i => new WeeklyScheduleItemDTO
+            {
+                ScheduleId = i.Id,
+                GroupId = i.GroupId,
+                GroupName = i.Group?.Name ?? "Ø¨Ø¯ÙˆÙ† Ø§Ø³Ù…",
+                TeacherId = i.Group?.TeacherId,
+                TeacherName = i.Group?.Teacher?.FullName ?? "ØºÙŠØ± Ù…Ø­Ø¯Ø¯",
+                DayOfWeek = (int)i.DayOfWeek,
+                StartTime = i.StartTime,
+                EndTime = i.EndTime,
+                EffectiveFrom = i.EffectiveFrom,
+                EffectiveTo = i.EffectiveTo,
+                IsOnline = i.Group?.IsOnline ?? false,
+                RoomName = i.Group?.Room?.Name
+            });
+        }
+
+                        public async Task<byte[]> ExportWeeklySchedulePdfAsync(string? teacherId = null)
+        {
+            var schedules = await GetAllActiveWeeklySchedulesAsync();
+            string? teacherName = null;
+
+            if (!string.IsNullOrWhiteSpace(teacherId) && teacherId != "all")
+            {
+                schedules = schedules.Where(s => s.TeacherId == teacherId).ToList();
+                teacherName = schedules.FirstOrDefault(s => s.TeacherId == teacherId)?.TeacherName;
+            }
+
+            return DarV2.Service.Export.SchedulePdfGenerator.GenerateWeeklySchedulePdf(schedules, teacherName);
         }
 
         public async Task<bool> RemoveAsync(int scheduleId)
@@ -168,3 +234,5 @@ namespace DarV2.Service
         }
     }
 }
+
+

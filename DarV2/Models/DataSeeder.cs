@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace DarV2.Models
@@ -22,6 +22,37 @@ namespace DarV2.Models
                 }
             );
         }
+
+        public static void SeedRoleClaims(this ModelBuilder modelBuilder)
+        {
+            int adminClaimId = 1;
+            
+            // 1. Admin Claims
+            var adminClaims = Permissions.GetAllPermissions();
+            foreach(var p in adminClaims)
+            {
+                modelBuilder.Entity<IdentityRoleClaim<string>>().HasData(
+                    new IdentityRoleClaim<string> { Id = adminClaimId++, RoleId = "1", ClaimType = "Permission", ClaimValue = p }
+                );
+            }
+            
+            // 2. Teacher Claims
+            int teacherClaimId = 1000;
+            var teacherClaims = new List<string> 
+            { 
+                Permissions.ViewStudents, 
+                Permissions.ViewGroups, 
+                Permissions.ViewAttendance, 
+                Permissions.ViewTeacherDashboard 
+            };
+            foreach(var p in teacherClaims)
+            {
+                 modelBuilder.Entity<IdentityRoleClaim<string>>().HasData(
+                    new IdentityRoleClaim<string> { Id = teacherClaimId++, RoleId = "2", ClaimType = "Permission", ClaimValue = p }
+                );
+            }
+        }
+
         public static void SeedAcademicYear(this ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AcademicYear>().HasData(

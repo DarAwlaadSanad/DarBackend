@@ -1,4 +1,4 @@
-﻿using CloudinaryDotNet;
+using CloudinaryDotNet;
 using DarV2.DTOs;
 using DarV2.Models;
 using DarV2.UnitofWork;
@@ -23,15 +23,19 @@ namespace DarV2.Service
             _config = config;
         }
 
-        public async Task<StudentPagedResultDTO> GetAllAsync(int page = 1, int pageSize = 20, int? academicYearId = null, int? groupId = null, string? search = null, bool? isActive = null)
+        public async Task<StudentPagedResultDTO> GetAllAsync(int page = 1, int pageSize = 20, int? academicYearId = null, int? groupId = null, string? search = null, bool? isActive = null, int? gender = null)
         {
             if (page <= 0) page = 1;
             if (pageSize <= 0) pageSize = 20;
 
             var query = _uow.Students.Query()
+                .AsNoTracking()
                 .Include(s => s.AcademicYear)
                 .Include(s => s.Images)
                 .Include(s => s.MemorizationRecords)
+                .Include(s => s.StudentGroups)
+                .Include(s => s.Phones)
+                .AsSplitQuery()
                 .AsQueryable();
 
             if (academicYearId.HasValue)
@@ -49,6 +53,12 @@ namespace DarV2.Service
             if (isActive.HasValue)
                 query = query.Where(s => s.IsActive == isActive.Value);
 
+            var maleCount = await query.CountAsync(s => s.Gender == Gender.Male);
+            var femaleCount = await query.CountAsync(s => s.Gender == Gender.Female);
+
+            if (gender.HasValue)
+                query = query.Where(s => s.Gender == (Gender)gender.Value);
+
             var total = await query.CountAsync();
 
             var items = await query
@@ -64,6 +74,7 @@ namespace DarV2.Service
                 SSN = s.SSN,
                 IsActive = s.IsActive,
                 Notes = s.Notes,
+                Gender = s.Gender,
                 Code=s.Code,
                 AcademicYear = s.AcademicYear != null ? new AcademicYearViewDTO { Id = s.AcademicYear.Id, Name = s.AcademicYear.Name, TypeSchool = (int)s.AcademicYear.TypeSchool } : null,
                 MemorizationRecords = s.MemorizationRecords.Select(mr => new MemorizationRecordDTO
@@ -86,6 +97,8 @@ namespace DarV2.Service
             {
                 Items = dtos,
                 TotalCount = total,
+                MaleCount = maleCount,
+                FemaleCount = femaleCount,
                 Page = page,
                 PageSize = pageSize
             };
@@ -102,6 +115,7 @@ namespace DarV2.Service
                 FullName = student.FullName,
                 SSN = student.SSN,
                 Notes = student.Notes,
+                Gender = student.Gender,
                 IsActive= student.IsActive,
                 Code = student.Code,
                 MemorizationRecords = student.MemorizationRecords.Select(mr => new MemorizationRecordDTO
@@ -181,6 +195,7 @@ namespace DarV2.Service
                 FullName = dto.FullName,
                 SSN = dto.SSN,
                 Notes = dto.Notes,
+                Gender = dto.Gender,
                 AcademicYearId = dto.AcademicYearId,
                 Code = code,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.SSN)
@@ -228,6 +243,11 @@ namespace DarV2.Service
             student.FullName = dto.FullName;
             student.SSN = dto.SSN;
             student.Notes = dto.Notes;
+            student.Gender = dto.Gender;
+            if (dto.AcademicYearId.HasValue)
+            {
+                student.AcademicYearId = dto.AcademicYearId.Value;
+            }
 
             _uow.Students.Update(student);
             await _uow.SaveAsync();
@@ -283,7 +303,7 @@ namespace DarV2.Service
         public async Task<bool> CreatePhoneAsync(int studentId, string number)
         {
             var student = await _uow.Students.GetStudentAsync(studentId);
-            if (student == null) throw new Exception("الطالب غير مسجل ");
+            if (student == null) throw new Exception("Ø§Ù„Ø·Ø§Ù„Ø¨ ØºÙŠØ± Ù…Ø³Ø¬Ù„ ");
             student.Phones.Add(new Phone { Number = number });
             await _uow.SaveAsync();
             return true;
@@ -292,7 +312,7 @@ namespace DarV2.Service
         public async Task<bool> DeletePhoneAsync(int phoneId)
         {
             var phone = await _uow.Phones.GetByIdAsync(phoneId);
-            if (phone == null) throw new Exception("رقم الهاتف غير موجود");
+            if (phone == null) throw new Exception("Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯");
             _uow.Phones.Remove(phone);
             await _uow.SaveAsync();
             return true;
@@ -301,7 +321,7 @@ namespace DarV2.Service
         public async Task<bool> UpdatePhoneAsync(int phoneId, string number)
         {
             var phone = await _uow.Phones.GetByIdAsync(phoneId);
-            if (phone == null) throw new Exception("رقم الهاتف غير موجود");
+            if (phone == null) throw new Exception("Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯");
             phone.Number = number;
             _uow.Phones.Update(phone);
             await _uow.SaveAsync();
@@ -373,6 +393,9 @@ namespace DarV2.Service
 
         public async Task<StudentLoginResponse> LoginAsync(string Code, string Password)
         {
+            Code = Code?.Trim() ?? string.Empty;
+            Password = Password?.Trim() ?? string.Empty;
+
             var student = await _uow.Students
                                     .FirstOrDefaultAsync(s => s.Code == Code
                                                            && s.IsActive);
@@ -380,16 +403,85 @@ namespace DarV2.Service
             if (student is null)
                 throw new UnauthorizedAccessException("Invalid code or password");
 
-            var valid = BCrypt.Net.BCrypt.Verify(Password, student.PasswordHash);
+            bool valid = false;
+
+            if (string.IsNullOrWhiteSpace(student.PasswordHash))
+            {
+                // Fallback to checking student's SSN if no password hash is set yet
+                if (!string.IsNullOrWhiteSpace(student.SSN) && student.SSN.Trim() == Password)
+                {
+                    valid = true;
+                    student.PasswordHash = BCrypt.Net.BCrypt.HashPassword(Password);
+                }
+            }
+            else
+            {
+                try
+                {
+                    valid = BCrypt.Net.BCrypt.Verify(Password, student.PasswordHash);
+                }
+                catch
+                {
+                    // Fallback if PasswordHash in DB was plaintext or malformed
+                    if (student.PasswordHash == Password || (!string.IsNullOrWhiteSpace(student.SSN) && student.SSN.Trim() == Password))
+                    {
+                        valid = true;
+                        student.PasswordHash = BCrypt.Net.BCrypt.HashPassword(Password);
+                    }
+                }
+            }
+
             if (!valid)
                 throw new UnauthorizedAccessException("Invalid code or password");
 
             var token = GenerateJwtToken(student);
+            var refreshToken = GenerateRefreshToken();
+
+            student.RefreshToken = refreshToken;
+            student.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            
+            _uow.Students.Update(student);
+            await _uow.SaveAsync();
 
             return new StudentLoginResponse
             {
                 StudentId = student.Id,
                 Token = token,
+                RefreshToken = refreshToken,
+                FullName = student.FullName,
+                Code = student.Code,
+                Role = "Student",
+                Roles = new List<string> { "Student" }
+            };
+        }
+
+        public async Task<StudentLoginResponse?> RefreshStudentTokenAsync(RefreshTokenRequestDTO model)
+        {
+            var principal = GetPrincipalFromExpiredToken(model.Token);
+            if (principal == null) return null;
+
+            var studentIdClaim = principal.FindFirst("studentId");
+            if (studentIdClaim == null || !int.TryParse(studentIdClaim.Value, out int studentId)) 
+                return null;
+
+            var student = await _uow.Students.GetByIdAsync(studentId);
+            if (student == null || student.RefreshToken != model.RefreshToken || student.RefreshTokenExpiryTime <= DateTime.UtcNow)
+                return null;
+
+            var newToken = GenerateJwtToken(student);
+            var newRefreshToken = GenerateRefreshToken();
+
+            student.RefreshToken = newRefreshToken;
+            student.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+
+            _uow.Students.Update(student);
+            await _uow.SaveAsync();
+
+            return new StudentLoginResponse
+            {
+                StudentId = student.Id,
+                Token = newToken,
+                RefreshToken = newRefreshToken,
                 FullName = student.FullName,
                 Code = student.Code,
                 Role = "Student"
@@ -401,7 +493,27 @@ namespace DarV2.Service
             var student = await _uow.Students.GetByIdAsync(studentId)
                 ?? throw new ArgumentException("Student not found");
 
-            if (!BCrypt.Net.BCrypt.Verify(currentPassword, student.PasswordHash))
+            currentPassword = currentPassword?.Trim() ?? string.Empty;
+            newPassword = newPassword?.Trim() ?? string.Empty;
+
+            bool currentValid = false;
+            if (string.IsNullOrWhiteSpace(student.PasswordHash))
+            {
+                currentValid = !string.IsNullOrWhiteSpace(student.SSN) && student.SSN.Trim() == currentPassword;
+            }
+            else
+            {
+                try
+                {
+                    currentValid = BCrypt.Net.BCrypt.Verify(currentPassword, student.PasswordHash);
+                }
+                catch
+                {
+                    currentValid = student.PasswordHash == currentPassword || (!string.IsNullOrWhiteSpace(student.SSN) && student.SSN.Trim() == currentPassword);
+                }
+            }
+
+            if (!currentValid)
                 throw new UnauthorizedAccessException("Current password is incorrect");
 
             student.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
@@ -434,5 +546,43 @@ namespace DarV2.Service
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        private string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[32];
+            using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
+
+        private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+        {
+            var tokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateAudience = true,
+                ValidateIssuer = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = _config["Jwt:Issuer"],
+                ValidAudience = _config["Jwt:Audience"],
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"] ?? string.Empty)),
+                ValidateLifetime = false
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            try
+            {
+                var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out var securityToken);
+                if (securityToken is not JwtSecurityToken jwtSecurityToken || 
+                    !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                    return null;
+
+                return principal;
+            }
+            catch
+            {
+                return null;
+            }
+        }
     }
 }
+

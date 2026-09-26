@@ -5,7 +5,7 @@ namespace DarV2.Service
 {
     public interface IStudentService
     {
-        Task<StudentPagedResultDTO> GetAllAsync(int page = 1, int pageSize = 20, int? academicYearId = null, int? groupId = null, string? search = null, bool? isActive = null);
+        Task<StudentPagedResultDTO> GetAllAsync(int page = 1, int pageSize = 20, int? academicYearId = null, int? groupId = null, string? search = null, bool? isActive = null, int? gender = null);
         Task<StudentDetailsDTO?> GetByIdAsync(int id);
         Task<StudentDetailsDTO> CreateAsync(StudentAddDTO dto);
         Task<bool> UpdateAsync(int id, StudentUpdateDTO dto);
@@ -23,6 +23,7 @@ namespace DarV2.Service
         Task<bool> ValidSSNAsync(string ssn);
 
         Task<StudentLoginResponse> LoginAsync(string Code, string Password);
+        Task<StudentLoginResponse?> RefreshStudentTokenAsync(RefreshTokenRequestDTO model);
         Task ChangePasswordAsync(int studentId, string currentPassword, string newPassword);
 
         Task<IEnumerable<GroupCardDTO>> GetGroupsAsync(int studentId);

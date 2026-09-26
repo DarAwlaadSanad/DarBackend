@@ -1,4 +1,4 @@
-using DarV2.Context;
+﻿using DarV2.Context;
 using DarV2.Models;
 using DarV2.Repository;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -13,9 +13,15 @@ namespace DarV2.UnitofWork
 
         // Lazy-loaded repositories
         private IStudentRepository? _studentRepository;
+        private IGenericRepository<Room>? _roomRepository;
         private IGroupRepository? _group_repository;
         private IGenericRepository<Attendance>? _attendance_repository;
         private IGenericRepository<Evaluation>? _evaluation_repository;
+        private IGenericRepository<Exam>? _exam_repository;
+        private IGenericRepository<ExamResult>? _examResult_repository;
+        private IGenericRepository<Competition>? _competitionRepository;
+        private IGenericRepository<CompetitionLevel>? _competitionLevelRepository;
+        private IGenericRepository<CompetitionResult>? _competitionResultRepository;
         private ISessionRepository? _sessionRepository;
         private IGenericRepository<StudentGroup>? _studentGroupRepository;
         private IGenericRepository<GroupSchedule>? _group_schedule_repository;
@@ -25,6 +31,7 @@ namespace DarV2.UnitofWork
         private IGenericRepository<StudentFee>? _studentFeeRepository;
         private IGenericRepository<AcademicYear>? _academicYearRepository;
         private IGenericRepository<MemorizationRecord>? _memorizationRepository;
+        private IGenericRepository<StudentWarning>? _studentWarningRepository;
 
         public UnitOfWork(DarContext context)
         {
@@ -35,6 +42,8 @@ namespace DarV2.UnitofWork
         public IStudentRepository Students
             => _studentRepository ??= new StudentRepository(_context);
 
+        public IGenericRepository<Room> Rooms
+            => _roomRepository ??= new GenericRepository<Room>(_context);
         
         public IGroupRepository Groups
             => _group_repository ??= new GroupRepository(_context);
@@ -47,6 +56,20 @@ namespace DarV2.UnitofWork
         public IGenericRepository<Evaluation> Evaluations
             => _evaluation_repository ??= new GenericRepository<Evaluation>(_context);
 
+        public IGenericRepository<Exam> Exams
+            => _exam_repository ??= new GenericRepository<Exam>(_context);
+
+        public IGenericRepository<ExamResult> ExamResults
+            => _examResult_repository ??= new GenericRepository<ExamResult>(_context);
+
+        public IGenericRepository<Competition> Competitions
+            => _competitionRepository ??= new GenericRepository<Competition>(_context);
+
+        public IGenericRepository<CompetitionLevel> CompetitionLevels
+            => _competitionLevelRepository ??= new GenericRepository<CompetitionLevel>(_context);
+
+        public IGenericRepository<CompetitionResult> CompetitionResults
+            => _competitionResultRepository ??= new GenericRepository<CompetitionResult>(_context);
         
         public ISessionRepository Sessions
             => _sessionRepository ??= new SessionRepository(_context);
@@ -78,6 +101,9 @@ namespace DarV2.UnitofWork
 
         public IGenericRepository<MemorizationRecord> MemorizationRecords
             => _memorizationRepository ??= new GenericRepository<MemorizationRecord>(_context);
+
+        public IGenericRepository<StudentWarning> StudentWarnings
+            => _studentWarningRepository ??= new GenericRepository<StudentWarning>(_context);
 
         
         public async Task<int> SaveAsync()
