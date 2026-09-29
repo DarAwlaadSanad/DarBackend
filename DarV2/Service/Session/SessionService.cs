@@ -35,6 +35,36 @@ namespace DarV2.Service
             var originalTeacherId = session.Group?.TeacherId;
             var groupName = session.Group?.Name ?? "الحلقة";
 
+            if (dto.SubstituteTeacherId == originalTeacherId)
+            {
+                throw new InvalidOperationException("لا يمكن تعيين نفس المعلم الأساسي للحلقة كمعلم بديل.");
+            }
+
+            // Check if substitute teacher has any overlapping sessions on the same date
+            var conflictingSessions = await _context.Sessions
+                .Include(s => s.Group)
+                .Where(s => s.SessionDate == session.SessionDate
+                         && s.Id != session.Id
+                         && (
+                             // Case 1: Substitute teacher is main teacher of another group and not substituted away
+                             (s.Group != null && s.Group.TeacherId == dto.SubstituteTeacherId && (string.IsNullOrEmpty(s.SubstituteTeacherId) || s.SubstituteTeacherId == dto.SubstituteTeacherId))
+                             ||
+                             // Case 2: Substitute teacher is already assigned as substitute for another session
+                             (s.SubstituteTeacherId == dto.SubstituteTeacherId)
+                         ))
+                .ToListAsync();
+
+            var conflict = conflictingSessions.FirstOrDefault(c => session.StartTime < c.EndTime && session.EndTime > c.StartTime);
+            if (conflict != null)
+            {
+                var conflictGroup = conflict.Group?.Name ?? "حلقة أخرى";
+                var startStr = conflict.StartTime.ToString(@"hh\:mm");
+                var endStr = conflict.EndTime.ToString(@"hh\:mm");
+                var subUser = await _context.Users.FindAsync(dto.SubstituteTeacherId);
+                var teacherName = subUser?.FullName ?? subUser?.UserName ?? "المعلم";
+                throw new InvalidOperationException($"المعلم ({teacherName}) غير متاح في هذا التوقيت، لديه حصة أخرى في ({conflictGroup}) من {startStr} إلى {endStr}.");
+            }
+
             // 1. Mark original teacher as absent for this session date if not already marked
             if (!string.IsNullOrEmpty(originalTeacherId))
             {

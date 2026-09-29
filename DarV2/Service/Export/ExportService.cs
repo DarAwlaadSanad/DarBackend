@@ -118,6 +118,7 @@ namespace DarV2.Service.Export
             
             FormatWorksheet(worksheet, "بيانات الطلاب مسجلة بدار التحفيظ");
 
+            foreach (var ws in workbook.Worksheets) { ws.RightToLeft = true; } // ensure all sheets RTL
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
             return stream.ToArray();
@@ -331,10 +332,103 @@ namespace DarV2.Service.Export
             workbook.SaveAs(stream);
             return stream.ToArray();
         }
+        
+        
+        private static string FormatTimeSpanForSheet(TimeSpan t)
+        {
+            if (t.Minutes == 0)
+            {
+                int h = t.Hours > 12 ? t.Hours - 12 : (t.Hours == 0 ? 12 : t.Hours);
+                return h.ToString();
+            }
+            int hr = t.Hours > 12 ? t.Hours - 12 : (t.Hours == 0 ? 12 : t.Hours);
+            return $"{hr}:{t.Minutes:D2}";
+        }
+
+        private XLWorkbook GetTemplateWorkbook()
+        {
+            string[] candidatePaths = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "Templates", "Template.xlsx"),
+                Path.Combine(Directory.GetCurrentDirectory(), "Templates", "Template.xlsx"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "Template.xlsx")
+            };
+
+            foreach (var p in candidatePaths)
+            {
+                if (!string.IsNullOrEmpty(p) && File.Exists(p))
+                {
+                    try { return new XLWorkbook(p); } catch { }
+                }
+            }
+
+            // Try embedded resource
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            var resourceName = assembly.GetManifestResourceNames()
+                .FirstOrDefault(n => n.EndsWith("Template.xlsx", StringComparison.OrdinalIgnoreCase));
+            if (resourceName != null)
+            {
+                try
+                {
+                    using var stream = assembly.GetManifestResourceStream(resourceName);
+                    if (stream != null) return new XLWorkbook(stream);
+                }
+                catch { }
+            }
+
+            return CreateFallbackTemplateWorkbook();
+        }
+
+        private XLWorkbook CreateFallbackTemplateWorkbook()
+        {
+            var wb = new XLWorkbook();
+            
+            // 1. Group template worksheet (ورقة1)
+            var ws = wb.Worksheets.Add("ورقة1");
+            ws.RightToLeft = true;
+
+            // Row 1 - Header
+            ws.Cell("A1").Value = "المعلم:";
+            ws.Cell("D1").Value = "اسم الحلقة:";
+            ws.Range("A1:J1").Style.Font.Bold = true;
+
+            // Row 2 - Columns Header
+            ws.Cell("A2").Value = "م";
+            ws.Cell("B2").Value = "اسم الطالب";
+            ws.Cell("C2").Value = "الرقم القومي";
+            ws.Cell("D2").Value = "رقم التليفون";
+            ws.Cell("E2").Value = "السنة الدراسية";
+            ws.Cell("F2").Value = "اليوم";
+            ws.Cell("G2").Value = "من";
+            ws.Cell("H2").Value = "الي";
+            ws.Cell("I2").Value = "الغرفة";
+            ws.Cell("J2").Value = "الوصف";
+
+            var headerRange = ws.Range("A2:J2");
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#2c3e50");
+            headerRange.Style.Font.FontColor = XLColor.White;
+            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            // 2. Lookup worksheet (ثابت)
+            var thabet = wb.Worksheets.Add("ثابت");
+            thabet.RightToLeft = true;
+            thabet.Cell("A1").Value = "المعلمين";
+            thabet.Cell("B1").Value = "الغرف";
+            thabet.Cell("C1").Value = "السنوات الدراسية";
+
+            var thabetHeader = thabet.Range("A1:C1");
+            thabetHeader.Style.Font.Bold = true;
+            thabetHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#34495e");
+            thabetHeader.Style.Font.FontColor = XLColor.White;
+
+            return wb;
+        }
+
         public async Task<byte[]> ExportEmptyTemplateAsync()
         {
             string connString = _config.GetConnectionString("DefaultConnection");
-            string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "Template.xlsx");
+            // templatePath resolved via GetTemplateWorkbook()
 
             var teachers = new System.Collections.Generic.List<dynamic>();
             var rooms = new System.Collections.Generic.List<dynamic>();
@@ -343,7 +437,7 @@ namespace DarV2.Service.Export
             using (var conn = new Microsoft.Data.SqlClient.SqlConnection(connString))
             {
                 await conn.OpenAsync();
-                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT u.Id, u.FullName FROM AspNetUsers u JOIN AspNetUserRoles ur ON u.Id = ur.UserId JOIN AspNetRoles r ON ur.RoleId = r.Id WHERE r.Name = 'Teacher'", conn))
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT DISTINCT u.Id, u.FullName FROM AspNetUsers u LEFT JOIN AspNetUserRoles ur ON u.Id = ur.UserId LEFT JOIN AspNetRoles r ON ur.RoleId = r.Id WHERE r.Name IN ('Teacher', 'مدرس', 'معلم', 'مشرف', 'ادارة') OR u.Id IN (SELECT DISTINCT TeacherId FROM Groups WHERE TeacherId IS NOT NULL) ORDER BY u.FullName", conn))
                 using (var reader = await cmd.ExecuteReaderAsync())
                     while (await reader.ReadAsync()) teachers.Add(new { Id = reader.GetString(0), FullName = reader.IsDBNull(1) ? "" : reader.GetString(1) });
 
@@ -356,7 +450,7 @@ namespace DarV2.Service.Export
                     while (await reader.ReadAsync()) academicYears.Add(new { Id = reader.GetInt32(0), Name = reader.IsDBNull(1) ? "" : reader.GetString(1), TypeSchool = reader.GetInt32(2) });
             }
 
-            using var workbook = new XLWorkbook(templatePath);
+            using var workbook = GetTemplateWorkbook();
             var thabetSheet = workbook.Worksheet("ثابت");
             
             int row = 2;
@@ -372,6 +466,7 @@ namespace DarV2.Service.Export
             }
 
             using var stream = new MemoryStream();
+            foreach (var ws in workbook.Worksheets) { ws.RightToLeft = true; }
             workbook.SaveAs(stream);
             return stream.ToArray();
         }
@@ -379,7 +474,7 @@ namespace DarV2.Service.Export
         public async Task<byte[]> ExportGroupsDataAsync()
         {
             string connString = _config.GetConnectionString("DefaultConnection");
-            string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "Templates", "Template.xlsx");
+            // templatePath resolved via GetTemplateWorkbook()
 
             var teachers = new System.Collections.Generic.List<dynamic>();
             var rooms = new System.Collections.Generic.List<dynamic>();
@@ -393,7 +488,7 @@ namespace DarV2.Service.Export
                 await conn.OpenAsync();
 
                 // 1. Teachers
-                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT u.Id, u.FullName FROM AspNetUsers u JOIN AspNetUserRoles ur ON u.Id = ur.UserId JOIN AspNetRoles r ON ur.RoleId = r.Id WHERE r.Name = 'Teacher'", conn))
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT DISTINCT u.Id, u.FullName FROM AspNetUsers u LEFT JOIN AspNetUserRoles ur ON u.Id = ur.UserId LEFT JOIN AspNetRoles r ON ur.RoleId = r.Id WHERE r.Name IN ('Teacher', 'مدرس', 'معلم', 'مشرف', 'ادارة') OR u.Id IN (SELECT DISTINCT TeacherId FROM Groups WHERE TeacherId IS NOT NULL) ORDER BY u.FullName", conn))
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
@@ -417,7 +512,10 @@ namespace DarV2.Service.Export
                 }
 
                 // 4. Groups
-                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT Id, Name, TeacherId, RoomId, Description FROM Groups", conn))
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(@"
+                    SELECT g.Id, g.Name, g.TeacherId, g.RoomId, g.Description, u.FullName as TeacherFullName 
+                    FROM Groups g 
+                    LEFT JOIN AspNetUsers u ON g.TeacherId = u.Id", conn))
                 using (var reader = await cmd.ExecuteReaderAsync())
                 {
                     while (await reader.ReadAsync())
@@ -426,7 +524,8 @@ namespace DarV2.Service.Export
                             Name = reader.IsDBNull(1) ? "" : reader.GetString(1), 
                             TeacherId = reader.IsDBNull(2) ? "" : reader.GetString(2),
                             RoomId = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
-                            Description = reader.IsDBNull(4) ? "" : reader.GetString(4)
+                            Description = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                            TeacherFullName = reader.IsDBNull(5) ? "" : reader.GetString(5)
                         });
                 }
 
@@ -474,7 +573,7 @@ namespace DarV2.Service.Export
                 }
             }
 
-            using var workbook = new XLWorkbook(templatePath);
+            using var workbook = GetTemplateWorkbook();
             var thabetSheet = workbook.Worksheet("ثابت");
             
             int row = 2;
@@ -519,31 +618,40 @@ namespace DarV2.Service.Export
                 }
 
                 var newSheet = templateSheet.CopyTo(finalName);
+                newSheet.RightToLeft = true;
                 
-                var teacher = System.Linq.Enumerable.FirstOrDefault(teachers, t => t.Id == g.TeacherId);
+                string teacherName = !string.IsNullOrEmpty(g.TeacherFullName) ? (string)g.TeacherFullName : "";
+                if (string.IsNullOrEmpty(teacherName) && !string.IsNullOrEmpty(g.TeacherId))
+                {
+                    var teacher = System.Linq.Enumerable.FirstOrDefault(teachers, t => t.Id == g.TeacherId);
+                    if (teacher != null) teacherName = (string)teacher.FullName;
+                }
                 
-                // Teacher
-                newSheet.Cell("B1").Value = teacher != null ? teacher.FullName : "";
-                newSheet.Cell("B1").Style.Font.FontColor = XLColor.Black;
-                newSheet.Cell("C1").Value = teacher != null ? $"{teacher.Id} - {teacher.FullName}" : "";
-                newSheet.Cell("C1").Style.Font.FontColor = XLColor.Black;
+                // Red Section (A1:C1) - Teacher Full Name ONLY (no GUID)
+                newSheet.Cell("A1").Value = teacherName;
+                newSheet.Cell("B1").Value = teacherName;
+                newSheet.Cell("C1").Value = teacherName;
+                newSheet.Range("A1:C1").Style.Font.Bold = true;
+                newSheet.Range("A1:C1").Style.Font.FontColor = XLColor.Black;
+                newSheet.Range("A1:C1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-                // Group Name
+                // Purple Section (D1:E1) - Group Name
+                newSheet.Cell("D1").Value = g.Name;
                 newSheet.Cell("E1").Value = g.Name;
-                newSheet.Cell("E1").Style.Font.FontColor = XLColor.Black;
+                newSheet.Range("D1:E1").Style.Font.Bold = true;
+                newSheet.Range("D1:E1").Style.Font.FontColor = XLColor.Black;
+                newSheet.Range("D1:E1").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-                // Room and Description (In Row 2)
+                // Room and Description (Row 2, I2 & J2)
                 var room = System.Linq.Enumerable.FirstOrDefault(rooms, r => r.Id == g.RoomId);
                 newSheet.Cell("I2").Value = room != null ? room.Name : "";
                 newSheet.Cell("I2").Style.Font.FontColor = XLColor.Black;
+                newSheet.Cell("I2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 newSheet.Cell("J2").Value = g.Description;
                 newSheet.Cell("J2").Style.Font.FontColor = XLColor.Black;
+                newSheet.Cell("J2").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
 
-                // Make F2, G2, H2 Black (They already have "اليوم", "من", "الي")
-                newSheet.Cell("F2").Style.Font.FontColor = XLColor.Black;
-                newSheet.Cell("G2").Style.Font.FontColor = XLColor.Black;
-                newSheet.Cell("H2").Style.Font.FontColor = XLColor.Black;
-
+                // Students (Row 3 onwards: A3:E3)
                 var students = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(studentGroups, s => s.GroupId == g.Id));
                 int rOut = 3;
                 int stIndex = 1;
@@ -551,38 +659,50 @@ namespace DarV2.Service.Export
                 {
                     newSheet.Cell(rOut, 1).Value = stIndex++;
                     newSheet.Cell(rOut, 1).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rOut, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     
                     newSheet.Cell(rOut, 2).Value = s.FullName;
                     newSheet.Cell(rOut, 2).Style.Font.FontColor = XLColor.Black;
                     
                     newSheet.Cell(rOut, 3).Value = "'" + s.SSN; 
                     newSheet.Cell(rOut, 3).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rOut, 3).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     
                     newSheet.Cell(rOut, 4).Value = "'" + s.Phone;
                     newSheet.Cell(rOut, 4).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rOut, 4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     
                     newSheet.Cell(rOut, 5).Value = s.AcademicYear;
                     newSheet.Cell(rOut, 5).Style.Font.FontColor = XLColor.Black;
                     rOut++;
                 }
 
+                // Green Section (Row 2 onwards: F2, G2, H2) - Session Schedules
+                newSheet.Cell("F2").Value = "";
+                newSheet.Cell("G2").Value = "";
+                newSheet.Cell("H2").Value = "";
+
                 var schedules = System.Linq.Enumerable.ToList(System.Linq.Enumerable.Where(groupSchedules, s => s.GroupId == g.Id));
-                rOut = 3;
+                int rSchedule = 2; // Green Section starts at Row 2!
                 foreach (var s in schedules)
                 {
-                    newSheet.Cell(rOut, 6).Value = s.DayOfWeek >= 0 && s.DayOfWeek <= 6 ? arabicDays[s.DayOfWeek] : "";
-                    newSheet.Cell(rOut, 6).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rSchedule, 6).Value = s.DayOfWeek >= 0 && s.DayOfWeek <= 6 ? arabicDays[s.DayOfWeek] : "";
+                    newSheet.Cell(rSchedule, 6).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rSchedule, 6).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     
-                    newSheet.Cell(rOut, 7).Value = s.StartTime.ToString(@"hh\:mm");
-                    newSheet.Cell(rOut, 7).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rSchedule, 7).Value = FormatTimeSpanForSheet(s.StartTime);
+                    newSheet.Cell(rSchedule, 7).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rSchedule, 7).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                     
-                    newSheet.Cell(rOut, 8).Value = s.EndTime.ToString(@"hh\:mm");
-                    newSheet.Cell(rOut, 8).Style.Font.FontColor = XLColor.Black;
-                    rOut++;
+                    newSheet.Cell(rSchedule, 8).Value = FormatTimeSpanForSheet(s.EndTime);
+                    newSheet.Cell(rSchedule, 8).Style.Font.FontColor = XLColor.Black;
+                    newSheet.Cell(rSchedule, 8).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    rSchedule++;
                 }
             }
 
-            templateSheet.Delete();
+            foreach (var ws in workbook.Worksheets) { ws.RightToLeft = true; } // All sheets RTL
+            if (workbook.Worksheets.Count > 1 && templateSheet != null) { templateSheet.Delete(); }
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
@@ -613,6 +733,32 @@ namespace DarV2.Service.Export
                     if (guidMatch.Success)
                     {
                         teacherId = guidMatch.Value;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(teacherCell))
+                    {
+                        string cleanTeacherName = teacherCell.Replace("المعلم:", "").Trim();
+                        if (workbook.TryGetWorksheet("ثابت", out var thabetWs))
+                        {
+                            int rT = 2;
+                            while (!thabetWs.Cell(rT, 1).IsEmpty())
+                            {
+                                string tEntry = thabetWs.Cell(rT, 1).GetString()?.Trim();
+                                if (!string.IsNullOrEmpty(tEntry))
+                                {
+                                    var m = System.Text.RegularExpressions.Regex.Match(tEntry, @"^([a-fA-F0-9\-]{36})\s*-\s*(.+)$");
+                                    if (m.Success)
+                                    {
+                                        string tName = m.Groups[2].Value.Trim();
+                                        if (string.Equals(tName, cleanTeacherName, StringComparison.OrdinalIgnoreCase) || cleanTeacherName.Contains(tName) || tName.Contains(cleanTeacherName))
+                                        {
+                                            teacherId = m.Groups[1].Value;
+                                            break;
+                                        }
+                                    }
+                                }
+                                rT++;
+                            }
+                        }
                     }
 
                     // Group Name (From D1 or E1)

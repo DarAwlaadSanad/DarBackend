@@ -76,6 +76,7 @@ namespace DarV2.Service
                 Notes = s.Notes,
                 Gender = s.Gender,
                 Code=s.Code,
+                Password = s.PlainPassword ?? s.SSN,
                 AcademicYear = s.AcademicYear != null ? new AcademicYearViewDTO { Id = s.AcademicYear.Id, Name = s.AcademicYear.Name, TypeSchool = (int)s.AcademicYear.TypeSchool } : null,
                 MemorizationRecords = s.MemorizationRecords.Select(mr => new MemorizationRecordDTO
                 {
@@ -118,6 +119,7 @@ namespace DarV2.Service
                 Gender = student.Gender,
                 IsActive= student.IsActive,
                 Code = student.Code,
+                Password = student.PlainPassword ?? student.SSN,
                 MemorizationRecords = student.MemorizationRecords.Select(mr => new MemorizationRecordDTO
                 {
                     Id = mr.Id,
@@ -198,7 +200,8 @@ namespace DarV2.Service
                 Gender = dto.Gender,
                 AcademicYearId = dto.AcademicYearId,
                 Code = code,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.SSN)
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.SSN),
+                PlainPassword = dto.SSN
             };
 
             await _uow.Students.AddAsync(student);
@@ -517,6 +520,7 @@ namespace DarV2.Service
                 throw new UnauthorizedAccessException("Current password is incorrect");
 
             student.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            student.PlainPassword = newPassword;
 
             _uow.Students.Update(student);
             await _uow.SaveAsync();
@@ -583,6 +587,24 @@ namespace DarV2.Service
                 return null;
             }
         }
+    
+        public async Task<(bool success, string? error, string? newPassword)> ResetPasswordByAdminAsync(int studentId, string? newPassword)
+        {
+            var student = await _uow.Students.GetStudentAsync(studentId);
+            if (student == null) return (false, "الطالب غير موجود.", null);
+
+            var pass = string.IsNullOrWhiteSpace(newPassword) ? student.SSN : newPassword.Trim();
+            if (string.IsNullOrWhiteSpace(pass))
+            {
+                return (false, "لا يمكن تعيين كلمة مرور فارغة.", null);
+            }
+
+            student.PasswordHash = BCrypt.Net.BCrypt.HashPassword(pass);
+            student.PlainPassword = pass;
+            _uow.Students.Update(student);
+            await _uow.SaveAsync();
+
+            return (true, null, pass);
+        }
     }
 }
-

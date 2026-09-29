@@ -15,6 +15,99 @@ namespace DarV2.Service
             _uow = uow;
         }
 
+                public async Task<GroupSchedule?> UpdateAsync(int scheduleId, CreateGroupScheduleDTO dto)
+        {
+            if (dto.EndTime <= dto.StartTime)
+            {
+                throw new Exception("وقت الانتهاء يجب أن يكون بعد وقت البدء");
+            }
+
+            var schedule = await _uow.GroupSchedules.GetByIdAsync(scheduleId);
+            if (schedule == null) return null;
+
+            await _uow.BeginTransactionAsync();
+            try
+            {
+                var group = await _uow.Groups.GetByIdAsync(dto.GroupId);
+                if (group != null && !group.IsOnline && group.RoomId.HasValue)
+                {
+                    // Check for room overlap conflicts excluding this schedule
+                    var conflicts = await _uow.GroupSchedules.Query()
+                        .Include(gs => gs.Group)
+                        .Where(gs => gs.IsActive 
+                                  && gs.Id != scheduleId
+                                  && gs.DayOfWeek == dto.DayOfWeek 
+                                  && gs.GroupId != dto.GroupId
+                                  && gs.Group != null 
+                                  && gs.Group.RoomId == group.RoomId)
+                        .ToListAsync();
+
+                    var conflict = conflicts.FirstOrDefault(c => dto.StartTime < c.EndTime && dto.EndTime > c.StartTime);
+                    if (conflict != null)
+                    {
+                        var conflictGroupName = conflict.Group?.Name ?? "مجموعة أخرى";
+                        var startStr = conflict.StartTime.ToString(@"hh\:mm");
+                        var endStr = conflict.EndTime.ToString(@"hh\:mm");
+                        throw new Exception($"تعارض في الموعد: الغرفة محجوزة لـ ({conflictGroupName}) في نفس اليوم من {startStr} إلى {endStr}. لا يمكن التعديل إلا بعد انتهاء الموعد الأول.");
+                    }
+                }
+
+                bool dayChanged = schedule.DayOfWeek != dto.DayOfWeek;
+                bool timeChanged = schedule.StartTime != dto.StartTime || schedule.EndTime != dto.EndTime;
+
+                schedule.DayOfWeek = dto.DayOfWeek;
+                schedule.StartTime = dto.StartTime;
+                schedule.EndTime = dto.EndTime;
+                schedule.EffectiveFrom = dto.EffectiveFrom;
+                schedule.IsActive = true;
+                _uow.GroupSchedules.Update(schedule);
+
+                // Handle future sessions generated from this schedule
+                var today = DateOnly.FromDateTime(DateTime.Today);
+                var futureSessions = await _uow.Sessions.Query()
+                    .Where(s => s.GroupScheduleId == scheduleId && s.SessionDate >= today)
+                    .ToListAsync();
+
+                if (dayChanged)
+                {
+                    // Remove future sessions without attendance/evaluations
+                    foreach (var s in futureSessions)
+                    {
+                        var hasAttendance = (await _uow.Attendances.FindAsync(a => a.SessionId == s.Id)).Any();
+                        var hasEval = (await _uow.Evaluations.FindAsync(e => e.SessionId == s.Id)).Any();
+                        if (!hasAttendance && !hasEval)
+                        {
+                            _uow.Sessions.Remove(s);
+                        }
+                    }
+                    await _uow.SaveAsync();
+
+                    // Regenerate new future sessions for the new day
+                    await GenerateSessionsFromScheduleAsync(schedule, monthsAhead: 5);
+                }
+                else if (timeChanged)
+                {
+                    // Update times of future sessions
+                    foreach (var s in futureSessions)
+                    {
+                        s.StartTime = dto.StartTime;
+                        s.EndTime = dto.EndTime;
+                        _uow.Sessions.Update(s);
+                    }
+                }
+
+                await _uow.SaveAsync();
+                await _uow.CommitAsync();
+
+                return schedule;
+            }
+            catch
+            {
+                await _uow.RollbackAsync();
+                throw;
+            }
+        }
+
         public async Task<GroupSchedule> AddAsync(CreateGroupScheduleDTO dto)
         {
             if (dto.EndTime <= dto.StartTime)

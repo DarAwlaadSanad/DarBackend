@@ -5,17 +5,22 @@ using DarV2.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 
+using DarV2.Context;
+using Microsoft.EntityFrameworkCore;
+
 namespace DarV2.Service
 {
     public class UserService : IUserService
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly Cloudinary _cloudinary;
+        private readonly DarContext _context;
 
-        public UserService(UserManager<ApplicationUser> userManager, Cloudinary cloudinary)
+        public UserService(UserManager<ApplicationUser> userManager, Cloudinary cloudinary, DarContext context)
         {
             _userManager = userManager;
             _cloudinary = cloudinary;
+            _context = context;
         }
 
         public async Task<IEnumerable<UserViewDTO>> GetAllAsync()
@@ -31,6 +36,7 @@ namespace DarV2.Service
                     UserName = u.UserName ?? string.Empty,
                     Email = u.Email ?? string.Empty,
                     FullName = u.FullName,
+                    IsActive = u.IsActive,
                     ProfilePictureUrl = u.ProfilePictureUrl,
                     Gender = u.Gender,
                     Roles = roles.ToList()
@@ -41,9 +47,59 @@ namespace DarV2.Service
 
         public async Task<IEnumerable<UserViewDTO>> GetTeachersAsync()
         {
-            var usersInRole = await _userManager.GetUsersInRoleAsync("Teacher");
+            var teacherRoles = new[] { "مدرس", "Teacher", "معلم", "مشرف" };
+            var usersMap = new Dictionary<string, ApplicationUser>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var role in teacherRoles)
+            {
+                try
+                {
+                    var usersInRole = await _userManager.GetUsersInRoleAsync(role);
+                    foreach (var u in usersInRole)
+                    {
+                        usersMap[u.Id] = u;
+                    }
+                }
+                catch { }
+            }
+
+            // Also include any user who is currently assigned as a teacher in any Group
+            try
+            {
+                var assignedTeacherIds = await _context.Groups
+                    .Where(g => !string.IsNullOrEmpty(g.TeacherId))
+                    .Select(g => g.TeacherId!)
+                    .Distinct()
+                    .ToListAsync();
+
+                foreach (var tId in assignedTeacherIds)
+                {
+                    if (!usersMap.ContainsKey(tId))
+                    {
+                        var u = await _userManager.FindByIdAsync(tId);
+                        if (u != null)
+                        {
+                            usersMap[u.Id] = u;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            // Fallback: If still empty, return all non-sysadmin users
+            if (usersMap.Count == 0)
+            {
+                var fallbackUsers = await _userManager.Users
+                    .Where(u => u.UserName != "sysadmin")
+                    .ToListAsync();
+                foreach (var u in fallbackUsers)
+                {
+                    usersMap[u.Id] = u;
+                }
+            }
+
             var result = new List<UserViewDTO>();
-            foreach (var u in usersInRole)
+            foreach (var u in usersMap.Values.OrderBy(x => x.FullName ?? x.UserName))
             {
                 var roles = await _userManager.GetRolesAsync(u);
                 result.Add(new UserViewDTO
@@ -237,6 +293,82 @@ namespace DarV2.Service
             }
 
             return (true, null);
+        }
+    
+        public async Task<(bool success, string? error, bool? newStatus)> ToggleStatusAsync(string currentUserId, string targetUserId)
+        {
+            if (currentUserId == targetUserId)
+            {
+                return (false, "لا يمكنك تغيير حالة حسابك الحالي.", null);
+            }
+
+            var user = await _userManager.FindByIdAsync(targetUserId);
+            if (user == null) return (false, "المستخدم غير موجود.", null);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles.Contains("SuperAdmin"))
+            {
+                return (false, "لا يمكن تعطيل حساب مدير النظام الرئيسي (SuperAdmin).", null);
+            }
+
+            user.IsActive = !user.IsActive;
+            if (!user.IsActive)
+            {
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
+            }
+
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                return (false, string.Join(", ", result.Errors.Select(e => e.Description)), null);
+            }
+
+            return (true, null, user.IsActive);
+        }
+
+        public async Task<(bool success, string? error)> DeleteUserAsync(string currentUserId, string targetUserId)
+        {
+            if (currentUserId == targetUserId)
+            {
+                return (false, "لا يمكنك حذف حسابك الحالي.");
+            }
+
+            var user = await _userManager.FindByIdAsync(targetUserId);
+            if (user == null) return (false, "المستخدم غير موجود.");
+
+            var roles = await _userManager.GetRolesAsync(user);
+            if (roles.Contains("SuperAdmin") || roles.Contains("Admin"))
+            {
+                return (false, "لا يمكن حذف حساب المسؤول أو مدير النظام.");
+            }
+
+            var hasGroups = await _context.Groups.AnyAsync(g => g.TeacherId == targetUserId);
+            if (hasGroups)
+            {
+                return (false, "لا يمكن حذف هذا المعلم لأنه مرتبط بحلقات كمعلم أساسي. يمكنك نقل حلقاته أولاً أو وضعه كـ غير نشط لمنعه من تسجيل الدخول.");
+            }
+
+            var hasAttendance = await _context.TeacherAttendances.AnyAsync(a => a.TeacherId == targetUserId);
+            var hasSessions = await _context.Sessions.AnyAsync(s => s.SubstituteTeacherId == targetUserId);
+            if (hasAttendance || hasSessions)
+            {
+                return (false, "لا يمكن حذف هذا المستخدم نهائياً لوجود سجلات حضور وحصص مرتبطة به. يمكنك وضعه كـ غير نشط لتعطيل حسابه ومنعه من تسجيل الدخول.");
+            }
+
+            try
+            {
+                var result = await _userManager.DeleteAsync(user);
+                if (!result.Succeeded)
+                {
+                    return (false, string.Join(", ", result.Errors.Select(e => e.Description)));
+                }
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, "تعذر حذف المستخدم لوجود ارتباطات في قاعدة البيانات: " + ex.Message);
+            }
         }
     }
 }

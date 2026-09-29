@@ -7,6 +7,7 @@
         public string? SSN { get; set; }
         public bool IsActive { get; set; }
         public string Code { get; set; }
+        public string? Password { get; set; }
         public string? Notes { get; set; }
         public Models.Gender? Gender { get; set; }
         public AcademicYearViewDTO AcademicYear { get; set; }

@@ -105,5 +105,28 @@ namespace DarV2.Controllers
             if (!success) return BadRequest(new { message = error });
             return Ok(new { message = "تم تغيير كلمة المرور بنجاح" });
         }
+    
+        [HttpPut("{userId}/toggle-status")]
+        [Authorize(Policy = Permissions.ManageUsers)]
+        public async Task<IActionResult> ToggleStatus(string userId)
+        {
+            var currentUserId = GetCurrentUserId();
+            var (success, error, newStatus) = await _userService.ToggleStatusAsync(currentUserId, userId);
+            if (!success) return BadRequest(new { message = error });
+            return Ok(new { 
+                isActive = newStatus, 
+                message = newStatus == true ? "تم تفعيل الحساب بنجاح." : "تم تعطيل الحساب بنجاح ومنعه من تسجيل الدخول." 
+            });
+        }
+
+        [HttpDelete("{userId}")]
+        [Authorize(Policy = Permissions.ManageUsers)]
+        public async Task<IActionResult> Delete(string userId)
+        {
+            var currentUserId = GetCurrentUserId();
+            var (success, error) = await _userService.DeleteUserAsync(currentUserId, userId);
+            if (!success) return BadRequest(new { message = error });
+            return Ok(new { message = "تم حذف المستخدم بنجاح." });
+        }
     }
 }

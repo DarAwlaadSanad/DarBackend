@@ -17,8 +17,8 @@ namespace DarV2.Models
                 new IdentityRole
                 {
                     Id = "2",
-                    Name = "Teacher",
-                    NormalizedName = "TEACHER"
+                    Name = "مدرس",
+                    NormalizedName = "مدرس"
                 }
             );
         }

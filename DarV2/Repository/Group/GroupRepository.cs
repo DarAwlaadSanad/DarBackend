@@ -23,16 +23,10 @@ namespace DarV2.Repository
         public async Task<Group?> GetGroupWithDetailsAsync(int groupId)
         {
             return await _db.Groups
+                .AsNoTracking()
                 .Where(g => g.Id == groupId)
-                .Include(g => g.Schedules)
                 .Include(g => g.Teacher)
                 .Include(g => g.Room)
-                .Include(g => g.StudentGroups)
-                    .ThenInclude(sg => sg.Student)
-                .Include(g => g.Sessions)
-                    .ThenInclude(s => s.Evaluations)
-                .Include(g => g.Sessions)
-                    .ThenInclude(s => s.Attendances)
                 .FirstOrDefaultAsync();
         }
     }

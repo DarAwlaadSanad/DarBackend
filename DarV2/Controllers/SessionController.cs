@@ -81,9 +81,20 @@ namespace DarV2.Controllers
                 return Forbid();
             }
 
-            var result = await _service.AssignSubstituteAsync(dto);
-            if (!result) return NotFound("Session not found.");
-            return Ok();
+            try
+            {
+                var result = await _service.AssignSubstituteAsync(dto);
+                if (!result) return NotFound(new { message = "لم يتم العثور على الحصة." });
+                return Ok(new { message = "تم تعيين المعلم البديل بنجاح." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "حدث خطأ أثناء تعيين المعلم البديل: " + ex.Message });
+            }
         }
     
         [HttpPost("revert-substitute/{sessionId}")]
@@ -100,9 +111,20 @@ namespace DarV2.Controllers
                 return Forbid();
             }
 
-            var result = await _service.RevertSubstituteAsync(sessionId);
-            if (!result) return NotFound("Session not found.");
-            return Ok();
+            try
+            {
+                var result = await _service.RevertSubstituteAsync(sessionId);
+                if (!result) return NotFound(new { message = "لم يتم العثور على الحصة." });
+                return Ok(new { message = "تم إلغاء تعيين المعلم البديل بنجاح." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = "حدث خطأ أثناء إلغاء تعيين المعلم البديل: " + ex.Message });
+            }
         }
 
     }

@@ -43,6 +43,33 @@ namespace DarV2.Controllers
             }
         }
 
+        [HttpPut("{id}")]
+        [Authorize]
+        public async Task<IActionResult> Update(int id, [FromBody] CreateGroupScheduleDTO dto)
+        {
+            try
+            {
+                var updated = await _service.UpdateAsync(id, dto);
+                if (updated == null) return NotFound();
+                var resultDto = new GroupScheduleViewDTO
+                {
+                    Id = updated.Id,
+                    GroupId = updated.GroupId,
+                    DayOfWeek = (int)updated.DayOfWeek,
+                    StartTime = updated.StartTime,
+                    EndTime = updated.EndTime,
+                    EffectiveFrom = updated.EffectiveFrom,
+                    EffectiveTo = updated.EffectiveTo,
+                    IsActive = updated.IsActive
+                };
+                return Ok(resultDto);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         [HttpGet("group/{groupId}")]
         public async Task<IActionResult> GetByGroup(int groupId)
         {

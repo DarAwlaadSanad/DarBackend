@@ -174,6 +174,31 @@ namespace DarV2.Service
                 })
                 .ToListAsync();
         }
+
+        public async Task<IEnumerable<StudentFeeViewDTO>> GetByStudentIdAsync(int studentId)
+        {
+            return await _uow.StudentFees.Query()
+                .Where(sf => sf.StudentId == studentId)
+                .OrderByDescending(sf => sf.Year)
+                .ThenByDescending(sf => sf.Month)
+                .Select(sf => new StudentFeeViewDTO
+                {
+                    Id = sf.Id,
+                    StudentId = sf.StudentId,
+                    StudentName = sf.Student.FullName,
+                    Gender = sf.Student.Gender,
+                    GroupId = sf.GroupId,
+                    GroupName = sf.Group.Name,
+                    RequiredAmount = sf.RequiredAmount,
+                    AmountPaid = sf.AmountPaid,
+                    Month = sf.Month,
+                    Year = sf.Year,
+                    PaymentDate = sf.PaymentDate,
+                    IsExempted = sf.IsExempted,
+                    ExemptionReason = sf.ExemptionReason,
+                    IsPermanentlyExempted = sf.Student.IsFeeExempted
+                })
+                .ToListAsync();
+        }
     }
 }
-

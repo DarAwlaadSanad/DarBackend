@@ -8,6 +8,7 @@ namespace DarV2.Models
         public const string ViewStudents    = "Permissions.Students.View";
         public const string ManageStudents  = "Permissions.Students.Manage";
         public const string DeleteStudents  = "Permissions.Students.Delete";
+        public const string ViewStudentPasswords = "Permissions.Students.ViewPasswords";
 
         // â”€â”€ Groups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         public const string ViewGroups      = "Permissions.Groups.View";
@@ -83,6 +84,10 @@ namespace DarV2.Models
         public const string ViewWarnings        = "Permissions.Warnings.View";
         public const string ManageWarnings      = "Permissions.Warnings.Manage";
 
+        // â”€â”€ Library â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        public const string ViewLibrary         = "Permissions.Library.View";
+        public const string ManageLibrary       = "Permissions.Library.Manage";
+
         public static List<string> GetAllPermissions()
         {
             var permissions = new List<string>();
@@ -117,7 +122,7 @@ namespace DarV2.Models
         {
             return new Dictionary<string, List<string>>
             {
-                ["Ø§Ù„Ø·Ù„Ø§Ø¨"] = new() { ViewStudents, ManageStudents, DeleteStudents },
+                ["Ø§Ù„Ø·Ù„Ø§Ø¨"] = new() { ViewStudents, ManageStudents, DeleteStudents, ViewStudentPasswords },
                 ["Ø§Ù„Ø­Ù„Ù‚Ø§Øª"] = new() { ViewGroups, ManageGroups, DeleteGroups },
                 ["Ø§Ù„Ø­Ø¶ÙˆØ± ÙˆØ§Ù„Ø¬Ù„Ø³Ø§Øª"] = new() { ViewAttendance, ManageAttendance, ManageSessions },
                 ["Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø±Ø§Øª"] = new() { ViewExams, ManageExams },

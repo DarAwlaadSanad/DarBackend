@@ -1,4 +1,4 @@
-using CloudinaryDotNet;
+﻿using CloudinaryDotNet;
 using DarV2.Context;
 using DarV2.Models;
 using DarV2.settings;
@@ -13,7 +13,7 @@ namespace DarV2
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -69,6 +69,7 @@ namespace DarV2
             builder.Services.AddScoped<IMemorizationService, MemorizationService>();
             // Teacher Attendance
             builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>();
+builder.Services.AddScoped<DarV2.Service.AttendanceLocation.IAttendanceLocationService, DarV2.Service.AttendanceLocation.AttendanceLocationService>();
             // Roles
             builder.Services.AddScoped<IRoleService, RoleService>();
             // Sessions
@@ -83,6 +84,8 @@ namespace DarV2
             builder.Services.AddScoped<IRoomService, RoomService>();
             // Chat
             builder.Services.AddScoped<IChatService, ChatService>();
+            // Book service
+            builder.Services.AddScoped<DarV2.Service.Book.IBookService, DarV2.Service.Book.BookService>();
 
             builder.Services.Configure<CloudinarySettings>(
                 builder.Configuration.GetSection("Cloudinary"));
@@ -189,6 +192,8 @@ namespace DarV2
             app.MapHub<DarV2.Hubs.NotificationHub>("/hubs/notifications");
             app.MapHub<DarV2.Hubs.ChatHub>("/hubs/chat");
 
+            // Seed initial books if table is empty
+            await DarV2.BookSeeder.SeedBooksAsync(app.Services);
             app.Run();
         }
     }

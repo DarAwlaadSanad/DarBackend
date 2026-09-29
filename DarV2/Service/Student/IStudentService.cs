@@ -25,6 +25,7 @@ namespace DarV2.Service
         Task<StudentLoginResponse> LoginAsync(string Code, string Password);
         Task<StudentLoginResponse?> RefreshStudentTokenAsync(RefreshTokenRequestDTO model);
         Task ChangePasswordAsync(int studentId, string currentPassword, string newPassword);
+        Task<(bool success, string? error, string? newPassword)> ResetPasswordByAdminAsync(int studentId, string? newPassword);
 
         Task<IEnumerable<GroupCardDTO>> GetGroupsAsync(int studentId);
 

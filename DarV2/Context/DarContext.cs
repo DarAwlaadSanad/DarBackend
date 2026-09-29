@@ -38,6 +38,8 @@ namespace DarV2.Context
         public DbSet<ChatRoom> ChatRooms { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<StudentWarning> StudentWarnings { get; set; }
+        public DbSet<Models.AttendanceLocation.AttendanceLocation> AttendanceLocations { get; set; }
+        public DbSet<Book> Books { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

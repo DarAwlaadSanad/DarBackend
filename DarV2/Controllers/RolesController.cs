@@ -32,6 +32,7 @@ namespace DarV2.Controllers
                 !User.HasClaim("Permission", Permissions.ViewRoles) &&
                 !User.HasClaim("Permission", Permissions.ViewUsers) &&
                 !User.HasClaim("Permission", Permissions.ManageUsers) &&
+                !User.HasClaim("Permission", Permissions.ManageLibrary) &&
                 !User.IsInRole("مشرف") &&
                 !User.IsInRole("Supervisor"))
                 return Forbid();

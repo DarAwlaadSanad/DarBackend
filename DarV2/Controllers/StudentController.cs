@@ -218,5 +218,21 @@ namespace DarV2.Controllers
         }
 
 
+    
+        [HttpPut("{id}/reset-password")]
+        [Authorize]
+        public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetStudentPasswordDTO dto)
+        {
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && 
+                !User.HasClaim("Permission", Permissions.ManageStudents) &&
+                !User.HasClaim("Permission", Permissions.ViewStudentPasswords))
+            {
+                return Forbid();
+            }
+
+            var (success, error, newPassword) = await _studentService.ResetPasswordByAdminAsync(id, dto?.Password);
+            if (!success) return BadRequest(new { message = error });
+            return Ok(new { message = "تم تحديث كلمة مرور الطالب بنجاح.", password = newPassword });
+        }
     }
 }

@@ -47,7 +47,7 @@ namespace DarV2.Service.Notification
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<DarContext>();
 
-            var now = DateTime.Now;
+            var now = DarV2.Service.TeacherAttendanceService.GetEgyptNow();
             var today = DateOnly.FromDateTime(now);
 
             // Fetch today's sessions

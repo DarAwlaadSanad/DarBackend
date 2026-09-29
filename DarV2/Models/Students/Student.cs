@@ -11,6 +11,7 @@
 
         public string Code { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
+        public string? PlainPassword { get; set; }
         
         public string? RefreshToken { get; set; }
         public DateTime? RefreshTokenExpiryTime { get; set; }

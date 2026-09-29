@@ -1,7 +1,11 @@
-﻿using DarV2.Context;
+using DarV2.Context;
 using DarV2.DTOs;
 using DarV2.Models;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace DarV2.Service
 {
@@ -22,7 +26,7 @@ namespace DarV2.Service
                 ? (m.StudentSender?.FullName ?? "طالب")
                 : (m.Sender?.UserName ?? "مستخدم"),
             Content = m.Content,
-            SentAt = m.SentAt,
+            SentAt = DateTime.SpecifyKind(m.SentAt, DateTimeKind.Utc),
             IsRead = m.IsRead
         };
 
@@ -56,13 +60,12 @@ namespace DarV2.Service
             return ToRoomDTO(room, last, 0);
         }
 
-        // ─── All student rooms (for admin/viewer) ───────────────────────
+        // ─── All student rooms (ordered by latest message descending) ───
         public async Task<IEnumerable<ChatRoomDTO>> GetStudentRoomsAsync()
         {
             var rooms = await _db.ChatRooms
                 .Include(r => r.Student)
                 .Where(r => r.Type == ChatRoomType.StudentSupport)
-                .OrderBy(r => r.Student!.FullName)
                 .ToListAsync();
 
             var result = new List<ChatRoomDTO>();
@@ -73,7 +76,11 @@ namespace DarV2.Service
                 var unread = await _db.ChatMessages.CountAsync(m => m.RoomId == r.Id && !m.IsRead && m.StudentSenderId.HasValue);
                 result.Add(ToRoomDTO(r, last, unread));
             }
-            return result;
+
+            return result
+                .OrderByDescending(r => r.LastMessage != null)
+                .ThenByDescending(r => r.LastMessage?.SentAt ?? DateTime.MinValue)
+                .ThenBy(r => r.StudentName);
         }
 
         // ─── Get/create student support room ────────────────────────────
@@ -117,7 +124,7 @@ namespace DarV2.Service
         // ─── Messages ────────────────────────────────────────────────────
         public async Task<IEnumerable<ChatMessageDTO>> GetMessagesAsync(int roomId, int page = 1, int pageSize = 50)
         {
-            return await _db.ChatMessages
+            var messages = await _db.ChatMessages
                 .Include(m => m.Sender)
                 .Include(m => m.StudentSender)
                 .Where(m => m.RoomId == roomId)
@@ -125,8 +132,9 @@ namespace DarV2.Service
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .OrderBy(m => m.SentAt)
-                .Select(m => ToDTO(m))
                 .ToListAsync();
+
+            return messages.Select(ToDTO).ToList();
         }
 
         public async Task<ChatMessageDTO?> SendMessageAsUserAsync(int roomId, string userId, string content)
@@ -144,12 +152,13 @@ namespace DarV2.Service
             _db.ChatMessages.Add(msg);
             await _db.SaveChangesAsync();
 
-            return await _db.ChatMessages
+            var saved = await _db.ChatMessages
                 .Include(m => m.Sender)
                 .Include(m => m.StudentSender)
                 .Where(m => m.Id == msg.Id)
-                .Select(m => ToDTO(m))
                 .FirstAsync();
+
+            return ToDTO(saved);
         }
 
         public async Task<ChatMessageDTO?> SendMessageAsStudentAsync(int roomId, int studentId, string content)
@@ -167,11 +176,12 @@ namespace DarV2.Service
             _db.ChatMessages.Add(msg);
             await _db.SaveChangesAsync();
 
-            return await _db.ChatMessages
+            var saved = await _db.ChatMessages
                 .Include(m => m.StudentSender)
                 .Where(m => m.Id == msg.Id)
-                .Select(m => ToDTO(m))
                 .FirstAsync();
+
+            return ToDTO(saved);
         }
 
         public async Task MarkRoomAsReadAsync(int roomId, string userId)
@@ -182,4 +192,3 @@ namespace DarV2.Service
         }
     }
 }
-

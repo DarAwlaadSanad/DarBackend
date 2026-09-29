@@ -14,5 +14,7 @@ namespace DarV2.Service
         Task<(bool success, string? error, string? photoUrl)> UpdateProfilePhotoAsync(string userId, IFormFile file);
         Task<bool> RemoveProfilePhotoAsync(string userId);
         Task<(bool success, string? error)> ChangePasswordAsync(string userId, ChangePasswordDTO dto);
+        Task<(bool success, string? error, bool? newStatus)> ToggleStatusAsync(string currentUserId, string targetUserId);
+        Task<(bool success, string? error)> DeleteUserAsync(string currentUserId, string targetUserId);
     }
 }

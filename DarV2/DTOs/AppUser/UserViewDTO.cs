@@ -7,6 +7,7 @@
         public string Email { get; set; }
         public string FullName { get; set; }
         public string? ProfilePictureUrl { get; set; }
+        public bool IsActive { get; set; } = true;
         public Models.Gender? Gender { get; set; }
         public List<string> Roles { get; set; } = new List<string>();
     }

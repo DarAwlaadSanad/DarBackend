@@ -32,4 +32,12 @@
     <Folder Include="Service\Session\" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <EmbeddedResource Include="Templates\Template.xlsx" />
+    <None Update="Templates\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
 </Project>

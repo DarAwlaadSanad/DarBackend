@@ -1,4 +1,4 @@
-﻿using DarV2.DTOs;
+using DarV2.DTOs;
 using DarV2.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -36,7 +36,7 @@ namespace DarV2.Service
                 return (false, result.Errors.Select(e => e.Description));
 
             // Assign default role to newly registered users
-            var defaultRole = "Teacher";
+            var defaultRole = "مدرس";
             var roleResult = await _userManager.AddToRoleAsync(user, defaultRole);
             if (!roleResult.Succeeded)
             {
@@ -119,7 +119,7 @@ namespace DarV2.Service
             if (username == null) return null;
 
             var user = await _userManager.FindByNameAsync(username);
-            if (user == null || user.RefreshToken != model.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            if (user == null || !user.IsActive || user.RefreshToken != model.RefreshToken || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
                 return null;
 
             // Generate new token

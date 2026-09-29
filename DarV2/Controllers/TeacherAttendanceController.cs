@@ -47,12 +47,12 @@ namespace DarV2.Controllers
         }
 
         [HttpPost("check-in")]
-        public async Task<IActionResult> CheckIn()
+        public async Task<IActionResult> CheckIn([FromBody] CheckInRequestDTO? request = null)
         {
             var userId = GetUserId();
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var response = await _service.CheckInAsync(userId);
+            var response = await _service.CheckInAsync(userId, request?.Latitude, request?.Longitude);
             return Ok(response);
         }
 
@@ -110,5 +110,37 @@ namespace DarV2.Controllers
             var report = await _service.GetMonthlyReportAsync(year, month);
             return Ok(report);
         }
+    
+        [HttpGet("history")]
+        [Authorize]
+        public async Task<IActionResult> GetAttendanceHistory(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20,
+            [FromQuery] string? teacherId = null,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null,
+            [FromQuery] bool? isAbsent = null,
+            [FromQuery] bool? hasDelay = null,
+            [FromQuery] string? search = null)
+        {
+            var userId = GetUserId();
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            bool isManager = User.IsInRole("Admin") || 
+                             User.IsInRole("SuperAdmin") || 
+                             User.IsInRole("مشرف") || 
+                             User.IsInRole("Supervisor") || 
+                             User.HasClaim("Permission", Permissions.ManageTeacherAttendance);
+
+            // If not manager, force teacherId to current user only
+            if (!isManager)
+            {
+                teacherId = userId;
+            }
+
+            var result = await _service.GetAttendanceHistoryAsync(page, pageSize, teacherId, fromDate, toDate, isAbsent, hasDelay, search);
+            return Ok(result);
+        }
+
     }
 }
